@@ -1,1 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Math Pathways – Reflection</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Progress Bar -->
+  <div class="progress"><i style="width:18%"></i></div>
 
+  <main class="container" role="main">
+    <h2>Thinking About Math</h2>
+    <p class="sub">Which of the following best describe why you sometimes get wrong answers?  
+    Select all that apply.</p>
+
+    <form id="reflectionForm">
+      <div class="checkbox-group">
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Difficulty understanding the question">
+          Difficulty understanding the question
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Difficulty understanding the math">
+          Difficulty understanding the math
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Making silly math mistakes">
+          Making silly math mistakes
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Feeling anxiety about math">
+          Feeling anxiety about math
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Overthinking the problem">
+          Overthinking the problem
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Being careless or rushing">
+          Being careless or rushing
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="I don’t typically struggle with math">
+          I don’t typically struggle with math
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
+      </div>
+    </form>
+  </main>
+
+  <script type="module">
+    import { setKV, setProgress } from './js/app.js';
+    setProgress(18);
+
+    const form = document.getElementById('reflectionForm');
+    const btn = document.getElementById('continueBtn');
+
+    // Enable continue button only if at least one checkbox is selected
+    form.addEventListener('change', () => {
+      const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')];
+      btn.disabled = selected.length === 0;
+    });
+
+    // Save results and move forward
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')]
+        .map(cb => cb.value);
+
+      setKV('reflection', selected);
+
+      // Next page will be Module 1 Ranking
+      window.location.href = 'm1_ranking.html';
+    });
+  </script>
+</body>
+</html>
