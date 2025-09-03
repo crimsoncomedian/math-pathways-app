@@ -76,18 +76,42 @@
   </div>
 
   <script type="module">
-    import { clearAll } from './js/app.js';
+  import { getKV } from './js/app.js';
 
-    // Restart button → clear local storage and restart at landing page
-    document.getElementById('restartBtn').addEventListener('click', ()=>{
-      clearAll();
-      window.location.href = 'index.html';
-    });
+  const firstName = getKV('firstName','');
+  const lastName  = getKV('lastName','');
+  const struggleReasons = getKV('struggle_reasons', []); // array of strings
 
-    // Exit button → default behavior goes back to landing
-    document.getElementById('exitBtn').addEventListener('click', ()=>{
-      window.location.href = 'index.html';
-    });
-  </script>
+  function packModule(n){
+    const p = `m${n}`;
+    const q1 = getKV(`${p}_q1`, null);
+    const q2 = getKV(`${p}_q2`, null);
+    return {
+      rank:       getKV(`${p}_ranking`, []),      // ['fs1','fs5',...]
+      confidence: getKV(`${p}_confidence`, {}),   // {fs1:'M',...}
+      q1: q1 ? { id: q1.id, timeSpent: q1.timeSpent } : null,
+      q2: q2 ? { id: q2.id, timeSpent: q2.timeSpent } : null,
+      reflection: getKV(`${p}_reflection`, null)  // {difficulty, explain, ts}
+    };
+  }
+
+  const payload = {
+    firstName, lastName, struggleReasons,
+    m1: packModule(1),
+    m2: packModule(2),
+    m3: packModule(3),
+    m4: packModule(4)
+  };
+
+  fetch("YOUR_WEB_APP_URL_HERE", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(console.log)
+  .catch(console.error);
+</script>
+
 </body>
 </html>
