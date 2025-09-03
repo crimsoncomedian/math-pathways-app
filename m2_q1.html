@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Equations & Inequalities – Question 1</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .question{
+      padding:1.25rem 1.25rem 1rem;border:1px solid #e5e7eb;border-radius:12px;background:#fff;
+      box-shadow:0 6px 16px rgba(0,0,0,.04);margin:1rem 0;
+    }
+    .qtext{font-size:1.05rem;line-height:1.5}
+    .answer{margin-top:1rem}
+  </style>
+</head>
+<body>
+  <div class="progress"><i style="width:90%"></i></div>
+
+  <main class="container" role="main">
+    <h2>Equations & Inequalities — Question 1</h2>
+    <p class="sub">This question was selected based on your confidence ratings.</p>
+
+    <div id="qbox" class="question" aria-live="polite">
+      <div id="qtext" class="qtext"></div>
+      <div class="answer">
+        <label for="resp" class="helper">Your answer</label>
+        <input id="resp" class="input" autocomplete="off" />
+        <p id="hint" class="helper" style="display:none"></p>
+      </div>
+    </div>
+
+    <div class="actions" style="justify-content:space-between">
+      <button class="btn" type="button" onclick="window.location.href='m2_confidence.html'">Back</button>
+      <button id="submitBtn" class="btn" type="button">Continue</button>
+    </div>
+    <p id="msg" class="helper" style="display:none;color:#b91c1c">Please enter an answer.</p>
+  </main>
+
+  <script type="module">
+    import { getKV, setKV, setProgress } from './js/app.js';
+    setProgress(90);
+
+    // Load stored context
+    const QUESTIONS = getKV('m2_questions', []);   // [{id,text}]
+    const RANK      = getKV('m2_ranking', []);     // ['eq1','eq2',...], easiest -> hardest
+    const CONF      = getKV('m2_confidence', {});  // { eq1:'H'|'M'|'L', ... }
+
+    if (!Array.isArray(RANK) || RANK.length === 0 || QUESTIONS.length === 0){
+      window.location.href = 'm2_ranking.html';
+    }
+
+    const byId = id => QUESTIONS.find(q => q.id === id);
+    const rankIndex = id => RANK.indexOf(id);
+
+    // Build groups by confidence in ranked order (so ends align with hardest/easiest)
+    const H = RANK.filter(id => CONF[id] === 'H');
+    const M = RANK.filter(id => CONF[id] === 'M');
+    const L = RANK.filter(id => CONF[id] === 'L');
+
+    const pickHardest        = g => g.length ? g[g.length - 1] : null;
+    const pickSecondHardest  = g => g.length >= 2 ? g[g.length - 2] : null;
+    const pickEasiest        = g => g.length ? g[0] : null;
+    const pickSecondEasiest  = g => g.length >= 2 ? g[1] : null;
+
+    // ----- Pivot selection rules -----
+    let q1Id = null;
+    if (H.length >= 2){
+      q1Id = pickSecondHardest(H);
+    } else if (H.length >= 1 && M.length >= 1){
+      q1Id = pickHardest(H);
+    } else if (H.length === 0 && M.length >= 1 && L.length === 0){
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length >= 1 && L.length >= 1){
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length === 0 && L.length >= 2){
+      q1Id = pickSecondEasiest(L);
+    }
+    if (!q1Id){ q1Id = RANK[Math.floor(RANK.length/2)]; } // safety fallback
+
+    const q = byId(q1Id);
+    if (!q){ window.location.href = 'm2_ranking.html'; }
+
+    // Render selected problem
+    document.getElementById('qtext').textContent = q.text;
+
+    // ---- Simple autograder ----
+    function normalize(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
+
+    // For open-response conceptual (eq5), use keyword check (heuristic)
+    function conceptualCheck(text){
+      const t = normalize(text);
+      const hasNeg   = t.includes('negativ');
+      const hasFlip  = t.includes('flip') || t.includes('revers');
+      const hasMulDiv= t.includes('multiply') || t.includes('divide');
+      const hasIneq  = t.includes('inequal') || t.includes('sign') || t.includes('order');
+      return hasNeg && hasFlip && hasMulDiv && hasIneq;
+    }
+
+    function checkAnswer(id, raw){
+      const a = normalize(raw);
+      switch(id){
+        case 'eq1': // v + 6 = 13 → v = 7
+          return a === '7' || a === 'v=7';
+        case 'eq2': // "at least 10" → n ≥ 10  (accept >=)
+          return a === 'n≥10' || a === 'n>=10';
+        case 'eq3': // p − 7 = 4p + 9 → p = -16/3
+          return a === '-16/3' || a === 'p=-16/3' || a === '-5.3333' || a === '-5.333' || a === '-5.33';
+        case 'eq4': // (x − 2)/5 = 3x → x = -1/7
+          return a === '-1/7' || a === 'x=-1/7' || a === '-0.142857' || a === '-0.1429';
+        case 'eq5': // conceptual explanation
+          return conceptualCheck(raw);
+        default:
+          return false;
+      }
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    const msg = document.getElementById('msg');
+    const resp = document.getElementById('resp');
+
+    submitBtn.addEventListener('click', ()=>{
+      const val = resp.value;
+      if(!val || !val.trim()){
+        msg.style.display = 'block';
+        return;
+      }
+      msg.style.display = 'none';
+
+      const correct = checkAnswer(q1Id, val);
+
+      // Save Q1 result
+      setKV('m2_q1', {
+        id: q1Id,
+        text: q.text,
+        answer: val,
+        correct
+      });
+
+      // Track asked to avoid repeats
+      const asked = getKV('m2_asked', []);
+      if(!asked.includes(q1Id)){
+        asked.push(q1Id);
+        setKV('m2_asked', asked);
+      }
+
+      window.location.href = 'm2_q2.html';
+    });
+  </script>
+</body>
+</html>
