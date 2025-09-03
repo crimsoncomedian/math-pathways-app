@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Foundational Skills – Question 1</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .question{
+      padding:1.25rem 1.25rem 1rem;border:1px solid #e5e7eb;border-radius:12px;background:#fff;
+      box-shadow:0 6px 16px rgba(0,0,0,.04);margin:1rem 0;
+    }
+    .qtext{font-size:1.05rem;line-height:1.5}
+    .answer{margin-top:1rem}
+  </style>
+</head>
+<body>
+  <div class="progress"><i style="width:45%"></i></div>
+
+  <main class="container" role="main">
+    <h2>Foundational Skills — Question 1</h2>
+    <p class="sub">This question was selected based on your confidence ratings.</p>
+
+    <div id="qbox" class="question" aria-live="polite">
+      <div id="qtext" class="qtext"></div>
+      <div class="answer">
+        <label for="resp" class="helper">Your answer</label>
+        <input id="resp" class="input" autocomplete="off" />
+        <p id="hint" class="helper" style="display:none"></p>
+      </div>
+    </div>
+
+    <div class="actions" style="justify-content:space-between">
+      <button class="btn" type="button" onclick="window.location.href='m1_confidence.html'">Back</button>
+      <button id="submitBtn" class="btn" type="button">Continue</button>
+    </div>
+    <p id="msg" class="helper" style="display:none;color:#b91c1c">Please enter an answer.</p>
+  </main>
+
+  <script type="module">
+    import { getKV, setKV, setProgress } from './js/app.js';
+    setProgress(45);
+
+    // Load data saved earlier
+    const QUESTIONS = getKV('m1_questions', []);         // [{id, text}, ...]
+    const RANK      = getKV('m1_ranking', []);           // ['fs1','fs4',...], easiest -> hardest
+    const CONF      = getKV('m1_confidence', {});        // { fs1:'H'|'M'|'L', ... }
+
+    // Utility
+    const byId = id => QUESTIONS.find(q => q.id === id);
+    const rankIndex = id => RANK.indexOf(id);
+
+    // ---- PIVOT SELECTION LOGIC (YOUR RULES) ----
+    // Build groups by confidence, ordered by student's ranking
+    const H = RANK.filter(id => CONF[id] === 'H');
+    const M = RANK.filter(id => CONF[id] === 'M');
+    const L = RANK.filter(id => CONF[id] === 'L');
+
+    function pickHardest(group){
+      // group is already in easiest->hardest (because RANK filtered),
+      // so hardest is the last element.
+      return group.length ? group[group.length - 1] : null;
+    }
+    function pickSecondHardest(group){
+      return group.length >= 2 ? group[group.length - 2] : null;
+    }
+    function pickEasiest(group){
+      return group.length ? group[0] : null;
+    }
+    function pickSecondEasiest(group){
+      return group.length >= 2 ? group[1] : null;
+    }
+
+    let q1Id = null;
+
+    // Apply the pivot rules exactly as provided:
+    if (H.length >= 2){
+      // If ≥2 High → 2nd-hardest of High-confidence questions
+      q1Id = pickSecondHardest(H);
+    } else if (H.length >= 1 && M.length >= 1){
+      // If mix of High & Medium → Hardest High-confidence question
+      q1Id = pickHardest(H);
+    } else if (H.length === 0 && M.length >= 1 && L.length === 0){
+      // If only Medium → Easiest Medium-confidence question
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length >= 1 && L.length >= 1){
+      // If Medium + Low → Easiest Medium-confidence question
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length === 0 && L.length >= 2){
+      // If only Low → 2nd-easiest Low-confidence question
+      q1Id = pickSecondEasiest(L);
+    }
+
+    // Safety fallback (shouldn't happen if inputs exist):
+    if (!q1Id){
+      // default to the middle-ranked item
+      q1Id = RANK[Math.floor(RANK.length/2)];
+    }
+
+    const q = byId(q1Id);
+    if (!q){
+      // If something's wrong, send them back to ranking
+      window.location.href = 'm1_ranking.html';
+    }
+
+    // Render question text
+    document.getElementById('qtext').textContent = q.text;
+
+    // ---- Minimal correctness checks (MVP) ----
+    function normalize(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
+
+    // Keys for Foundational Skills Qs
+    function checkAnswer(id, raw){
+      const a = normalize(raw);
+
+      switch(id){
+        case 'fs1': // Simplify 3y + 5y − 2 → 8y − 2
+          return a === '8y-2' || a === '-2+8y';
+        case 'fs2': // Evaluate m^2 − 12 ÷ m, m=4 → 13
+          return a === '13';
+        case 'fs3': // Earnings expression → 15h + 40 (accept 40+15h, with or without * )
+          return /^15\*?h\+40$/.test(a) || /^40\+15\*?h$/.test(a);
+        case 'fs4': // Simplify 4x − 2(3x − 1) + 5 → -2x + 7
+          return a === '-2x+7' || a === '7-2x';
+        case 'fs5': // Write 4(a − 2) with no multiplication → 4a - 8
+          return a === '4a-8' || a === '-8+4a';
+        default:
+          return false;
+      }
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    const msg = document.getElementById('msg');
+    const resp = document.getElementById('resp');
+
+    submitBtn.addEventListener('click', ()=>{
+      const val = resp.value;
+      if(!val || !val.trim()){
+        msg.style.display = 'block';
+        return;
+      }
+      msg.style.display = 'none';
+
+      const correct = checkAnswer(q1Id, val);
+
+      // Save Q1 result for this module
+      setKV('m1_q1', {
+        id: q1Id,
+        text: q.text,
+        answer: val,
+        correct
+      });
+
+      // Also keep a list of asked question IDs for this module (to avoid repeats)
+      const asked = getKV('m1_asked', []);
+      if(!asked.includes(q1Id)){
+        asked.push(q1Id);
+        setKV('m1_asked', asked);
+      }
+
+      // Move to Q2 (adaptive)
+      window.location.href = 'm1_q2.html';
+    });
+  </script>
+</body>
+</html>
