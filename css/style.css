@@ -14,3 +14,15 @@ h1,h2{margin:.25rem 0 1rem}
 .progress{height:8px;background:#e6e9ff;border-radius:999px;overflow:hidden;margin:0 auto 1.25rem;max-width:720px}
 .progress>i{display:block;height:100%;width:0;background:var(--primary)}
 .helper{font-size:.9rem;color:var(--muted);margin:.25rem 0 .5rem}
+.sortable{list-style:none;margin:1rem 0;padding:0;display:flex;flex-direction:column;gap:.75rem}
+.draggable{
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+  gap:.75rem; padding:1rem; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.04);
+}
+.draggable .badge{
+  background:#eef2ff; color:#334155; font-weight:600; padding:.25rem .6rem; border-radius:999px; min-width:2rem; text-align:center;
+}
+.draggable .qtext{line-height:1.35}
+.draggable .handle{cursor:grab; user-select:none; font-size:1.1rem; color:#94a3b8}
+.draggable.dragging{opacity:.8; outline:2px dashed #a5b4fc}
