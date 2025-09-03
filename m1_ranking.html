@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Math Pathways – Foundational Skills (Ranking)</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="progress"><i style="width:25%"></i></div>
+
+  <main class="container" role="main">
+    <h2>Foundational Skills — Rank the Questions</h2>
+    <p class="sub">Drag the questions so the <b>easiest is on top</b> and the <b>hardest on the bottom</b>.</p>
+
+    <ul id="rankList" class="sortable" aria-label="Rank questions from easiest to hardest"></ul>
+
+    <div class="actions" style="justify-content:space-between">
+      <button class="btn" type="button" onclick="window.location.href='reflection.html'">Back</button>
+      <button id="continueBtn" class="btn" type="button">Continue</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { setKV, getKV, setProgress } from './js/app.js';
+    setProgress(25);
+
+    // Foundational Skills questions (IDs are important for later logic)
+    const QUESTIONS = [
+      { id:'fs1', text:'Simplify 3y + 5y − 2.' },
+      { id:'fs2', text:'Evaluate m² − 12 ÷ m, when m = 4.' },
+      { id:'fs3', text:'You earn $15 per hour babysitting. You already have $40 in your savings. Write an expression for your total money after h hours.' },
+      { id:'fs4', text:'Simplify 4x − 2(3x − 1) + 5.' },
+      { id:'fs5', text:'Write 4(a − 2) with no multiplication.' }
+    ];
+
+    const listEl = document.getElementById('rankList');
+
+    // Render list (use saved order if the student returns)
+    const savedOrder = getKV('m1_ranking', null);
+    const order = savedOrder && Array.isArray(savedOrder) && savedOrder.length === QUESTIONS.length
+      ? savedOrder
+      : QUESTIONS.map(q => q.id);
+
+    function byId(id){ return QUESTIONS.find(q => q.id === id); }
+    function render(){
+      listEl.innerHTML = '';
+      order.forEach((id, idx) => {
+        const li = document.createElement('li');
+        li.className = 'draggable';
+        li.draggable = true;
+        li.dataset.id = id;
+        li.innerHTML = `
+          <span class="badge">${idx+1}</span>
+          <span class="qtext">${byId(id).text}</span>
+          <span class="handle" aria-hidden="true">⋮⋮</span>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+    render();
+
+    // HTML5 drag & drop
+    let dragId = null;
+    listEl.addEventListener('dragstart', (e)=>{
+      const li = e.target.closest('li.draggable');
+      if(!li) return;
+      dragId = li.dataset.id;
+      li.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    listEl.addEventListener('dragend', (e)=>{
+      const li = e.target.closest('li.draggable');
+      if(li) li.classList.remove('dragging');
+      dragId = null;
+      // update badges
+      [...listEl.children].forEach((li,i)=> li.querySelector('.badge').textContent = i+1);
+    });
+    listEl.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      const after = getDragAfterElement(listEl, e.clientY);
+      const dragging = listEl.querySelector('.dragging');
+      if(!dragging) return;
+      if(after == null) listEl.appendChild(dragging);
+      else listEl.insertBefore(dragging, after);
+    });
+
+    function getDragAfterElement(container, y){
+      const els = [...container.querySelectorAll('li.draggable:not(.dragging)')];
+      return els.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if(offset < 0 && offset > closest.offset){
+          return { offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Save & continue
+    document.getElementById('continueBtn').addEventListener('click', ()=>{
+      const ids = [...listEl.querySelectorAll('li')].map(li => li.dataset.id);
+      // easiest → hardest
+      setKV('m1_ranking', ids);
+      // also store the full texts alongside
+      setKV('m1_questions', QUESTIONS);
+      window.location.href = 'm1_confidence.html';
+    });
+  </script>
+</body>
+</html>
