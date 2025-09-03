@@ -6,148 +6,132 @@
   <title>Equations & Inequalities – Confidence</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .confidence-key {
-      background: #f7f8fc;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      display: flex;
-      gap: 16px;
-      font-size: 14px;
-      justify-content: center;
-      align-items: center;
-      border: 1px solid #e0e0e0;
+    .key {
+      background:#f7f8fc; border:1px solid #e5e7eb; padding:.75rem 1rem;
+      border-radius:10px; display:flex; gap:16px; justify-content:center; align-items:center;
+      margin-bottom:1rem; color:#374151; font-size:.95rem;
     }
-
-    .confidence-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      background: #fff;
+    .conf-list{display:flex; flex-direction:column; gap:.75rem; margin-top:1rem}
+    .conf-row{
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      padding:.85rem 1rem; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
     }
-
-    .question-text {
-      flex: 1;
-      margin-right: 12px;
-      font-size: 15px;
+    .qtext{flex:1; font-size:15px; margin-right:.75rem}
+    .choices{display:flex; gap:12px; flex-shrink:0}
+    .emo-btn{
+      font-size:20px; background:none; border:none; cursor:pointer; line-height:1;
+      transition:transform .15s ease;
     }
-
-    .emoji-buttons {
-      display: flex;
-      gap: 12px;
-      flex-shrink: 0;
-    }
-
-    .emoji-btn {
-      font-size: 20px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      transition: transform 0.15s ease;
-    }
-
-    .emoji-btn.selected {
-      transform: scale(1.3);
-    }
-
-    .actions {
-      margin-top: 20px;
-      display: flex;
-      justify-content: space-between;
-    }
+    .emo-btn[aria-pressed="true"]{ transform:scale(1.25); }
+    .actions{display:flex; justify-content:space-between; margin-top:20px}
+    .helper.small{font-size:.85rem}
   </style>
 </head>
 <body>
-  <div class="progress"><i style="width:80%"></i></div>
+  <div class="progress"><i style="width:85%"></i></div>
 
   <main class="container" role="main">
     <h2>How confident do you feel about each problem?</h2>
-    <p>Choose one confidence level for each question.</p>
+    <p class="sub">Choose one confidence level for each question.</p>
 
-    <!-- Key at the top -->
-    <div class="confidence-key">
+    <!-- Key only; no labels on per-question buttons -->
+    <div class="key" aria-hidden="true">
+      <strong>Confidence key:</strong>
       <span>😟 Not confident</span>
       <span>😐 Somewhat</span>
-      <span>😎 Very confident</span>
+      <span>🙂 Very confident</span>
     </div>
 
-    <!-- Questions + emoji buttons -->
-    <div id="confidenceList"></div>
+    <div id="confList" class="conf-list" aria-live="polite"></div>
 
     <div class="actions">
-      <button class="btn" onclick="window.location.href='m2_ranking.html'">Back</button>
-      <button id="continueBtn" class="btn" disabled>Continue</button>
+      <button class="btn" type="button" onclick="window.location.href='m2_ranking.html'">Back</button>
+      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
     </div>
+
+    <p id="msg" class="helper small" style="display:none;color:#b91c1c">Please select a confidence level for every question.</p>
   </main>
 
   <script type="module">
     import { getKV, setKV, setProgress } from './js/app.js';
-    setProgress(80);
+    setProgress(85);
 
     const QUESTIONS = getKV('m2_questions', []);
-    const saved = getKV('m2_confidence', {});
-    const container = document.getElementById('confidenceList');
-    const continueBtn = document.getElementById('continueBtn');
+    const order     = getKV('m2_ranking', []) || QUESTIONS.map(q=>q.id);
+    const saved     = getKV('m2_confidence', {}); // { eq1:'H'|'M'|'L' }
 
-    // Confidence mapping
+    const confList = document.getElementById('confList');
+    const continueBtn = document.getElementById('continueBtn');
+    const msg = document.getElementById('msg');
+
+    if (!Array.isArray(order) || order.length === 0 || QUESTIONS.length === 0){
+      window.location.href = 'm2_ranking.html';
+    }
+
+    const byId = id => QUESTIONS.find(q => q.id === id);
+
     const EMOJIS = [
-      { key: 'low', icon: '😟' },
-      { key: 'med', icon: '😐' },
-      { key: 'high', icon: '😎' }
+      { key:'L', icon:'😟' },
+      { key:'M', icon:'😐' },
+      { key:'H', icon:'🙂' }
     ];
 
-    // Render questions dynamically
-    function render() {
-      container.innerHTML = '';
-      QUESTIONS.forEach(q => {
+    function render(){
+      confList.innerHTML = '';
+      order.forEach(id => {
+        const q = byId(id);
         const row = document.createElement('div');
-        row.className = 'confidence-row';
-        row.innerHTML = `
-          <div class="question-text">${q.text}</div>
-          <div class="emoji-buttons">
-            ${EMOJIS.map(e => `
-              <button class="emoji-btn ${saved[q.id] === e.key ? 'selected' : ''}" 
-                      data-id="${q.id}" 
-                      data-value="${e.key}">
-                ${e.icon}
-              </button>
-            `).join('')}
-          </div>
-        `;
-        container.appendChild(row);
-      });
+        row.className = 'conf-row';
+        row.dataset.id = id;
 
-      // Add click handlers to emoji buttons
-      document.querySelectorAll('.emoji-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.id;
-          const val = btn.dataset.value;
-          saved[id] = val;
-          setKV('m2_confidence', saved);
-          render(); // re-render to show selection visually
-          checkAllAnswered();
+        const qtext = document.createElement('div');
+        qtext.className = 'qtext';
+        qtext.textContent = q.text;
+
+        const choices = document.createElement('div');
+        choices.className = 'choices';
+
+        EMOJIS.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'emo-btn';
+          btn.setAttribute('role','radio');
+          btn.setAttribute('aria-label', `${opt.key} for: ${q.text}`);
+          btn.setAttribute('aria-pressed', saved[id] === opt.key ? 'true' : 'false');
+          btn.dataset.id = id;
+          btn.dataset.val = opt.key;
+          btn.textContent = opt.icon;
+          btn.addEventListener('click', ()=>{
+            saved[id] = opt.key;
+            setKV('m2_confidence', saved);
+            // update pressed state for this row
+            [...choices.querySelectorAll('.emo-btn')].forEach(b => b.setAttribute('aria-pressed','false'));
+            btn.setAttribute('aria-pressed','true');
+            validate();
+          });
+          choices.appendChild(btn);
         });
+
+        row.appendChild(qtext);
+        row.appendChild(choices);
+        confList.appendChild(row);
       });
     }
 
-    // Enable continue only if all questions are answered
-    function checkAllAnswered() {
-      const allAnswered = QUESTIONS.every(q => saved[q.id]);
+    function validate(){
+      const allAnswered = order.every(id => saved[id] === 'H' || saved[id] === 'M' || saved[id] === 'L');
       continueBtn.disabled = !allAnswered;
+      msg.style.display = allAnswered ? 'none' : 'block';
     }
 
-    // Continue → go to first adaptive question
-    continueBtn.addEventListener('click', () => {
+    continueBtn.addEventListener('click', ()=>{
+      if (continueBtn.disabled) return;
       setKV('m2_confidence', saved);
       window.location.href = 'm2_q1.html';
     });
 
     render();
-    checkAllAnswered();
+    validate();
   </script>
 </body>
 </html>
