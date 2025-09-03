@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Foundational Skills – Confidence</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .key {
+      background:#f1f5ff; border:1px solid #e5e7eb; padding:.75rem 1rem;
+      border-radius:10px; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+      margin-bottom:1rem; color:#374151;
+    }
+    .conf-list{display:flex; flex-direction:column; gap:.75rem; margin-top:1rem}
+    .conf-row{
+      display:grid; grid-template-columns:1fr auto; gap:.75rem; align-items:center;
+      padding:.85rem 1rem; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+    }
+    .choices{display:flex; gap:.5rem; align-items:center}
+    .pill{
+      display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .6rem;
+      border:1px solid #e5e7eb; border-radius:999px; background:#fff; cursor:pointer;
+      user-select:none; font-size:.95rem;
+    }
+    .pill[data-val="L"] .emo{filter:grayscale(0.2)}
+    .pill[data-val="M"] .emo{filter:grayscale(0)}
+    .pill[data-val="H"] .emo{filter:grayscale(0)}
+    .pill[aria-pressed="true"]{
+      border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring);
+      background:#f6f8ff;
+    }
+    .emo{font-size:1.1rem; line-height:1}
+    .helper.small{font-size:.85rem}
+  </style>
+</head>
+<body>
+  <!-- visual-only progress -->
+  <div class="progress"><i style="width:35%"></i></div>
+
+  <main class="container" role="main">
+    <h2>How confident do you feel about each problem?</h2>
+    <p class="sub">Choose one confidence level for each question.</p>
+
+    <div class="key" aria-hidden="true">
+      <strong>Confidence key:</strong>
+      <span>😟 Not confident</span>
+      <span>😐 Somewhat</span>
+      <span>🙂 Very confident</span>
+    </div>
+
+    <div id="confList" class="conf-list" aria-live="polite"></div>
+
+    <div class="actions" style="justify-content:space-between">
+      <button class="btn" type="button" onclick="window.location.href='m1_ranking.html'">Back</button>
+      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
+    </div>
+
+    <p id="msg" class="helper small" style="display:none;color:#b91c1c">Please select a confidence level for every question.</p>
+  </main>
+
+  <script type="module">
+    import { getKV, setKV, setProgress } from './js/app.js';
+    setProgress(35);
+
+    // Pull questions + ranked order from storage
+    const QUESTIONS = getKV('m1_questions', []);
+    const order = getKV('m1_ranking', []);
+    const byId = id => QUESTIONS.find(q => q.id === id);
+
+    const confList = document.getElementById('confList');
+    const continueBtn = document.getElementById('continueBtn');
+    const msg = document.getElementById('msg');
+
+    // H/M/L map by emoji button
+    const CHOICES = [
+      { key:'L', label:'Not confident',  emoji:'😟' },
+      { key:'M', label:'Somewhat',       emoji:'😐' },
+      { key:'H', label:'Very',           emoji:'🙂' },
+    ];
+
+    // render rows in the student's ranked order (easiest → hardest)
+    if (!Array.isArray(order) || order.length === 0 || QUESTIONS.length === 0){
+      // fallback: go back to ranking if needed
+      window.location.href = 'm1_ranking.html';
+    } else {
+      order.forEach(id => {
+        const q = byId(id);
+        const row = document.createElement('div');
+        row.className = 'conf-row';
+        row.dataset.id = id;
+
+        const qtext = document.createElement('div');
+        qtext.textContent = q.text;
+
+        const choices = document.createElement('div');
+        choices.className = 'choices';
+        CHOICES.forEach(choice => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pill';
+          btn.setAttribute('role','radio');
+          btn.setAttribute('aria-pressed','false');
+          btn.setAttribute('aria-label', `${choice.label} for: ${q.text}`);
+          btn.dataset.val = choice.key;
+          btn.innerHTML = `<span class="emo">${choice.emoji}</span><span class="lbl" aria-hidden="true">${choice.label}</span>`;
+          btn.addEventListener('click', ()=>{
+            // unselect siblings
+            [...choices.querySelectorAll('.pill')].forEach(b => b.setAttribute('aria-pressed','false'));
+            btn.setAttribute('aria-pressed','true');
+            validate();
+          });
+          choices.appendChild(btn);
+        });
+
+        row.appendChild(qtext);
+        row.appendChild(choices);
+        confList.appendChild(row);
+      });
+    }
+
+    function collectSelections(){
+      const out = {};
+      [...confList.querySelectorAll('.conf-row')].forEach(row=>{
+        const id = row.dataset.id;
+        const pressed = row.querySelector('.pill[aria-pressed="true"]');
+        out[id] = pressed ? pressed.dataset.val : null; // 'H' | 'M' | 'L' | null
+      });
+      return out;
+    }
+
+    function validate(){
+      const selections = collectSelections();
+      const allAnswered = Object.values(selections).every(v => v === 'H' || v === 'M' || v === 'L');
+      continueBtn.disabled = !allAnswered;
+      msg.style.display = allAnswered ? 'none' : 'block';
+    }
+
+    continueBtn.addEventListener('click', ()=>{
+      const selections = collectSelections();
+      const allAnswered = Object.values(selections).every(v => v);
+      if (!allAnswered){ validate(); return; }
+
+      // Save confidence map, e.g. { fs1:'M', fs2:'H', ... }
+      setKV('m1_confidence', selections);
+
+      // proceed to the first adaptive question page (pivot)
+      window.location.href = 'm1_q1.html';
+    });
+  </script>
+</body>
+</html>
