@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Math Pathways – Your Name</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- visual-only progress -->
+  <div class="progress"><i style="width:10%"></i></div>
+
+  <main class="container" role="main">
+    <h2>What’s your name?</h2>
+    <p class="sub">We’ll use this to keep your work together. No email required.</p>
+
+    <form id="nameForm" novalidate>
+      <div class="row" style="flex-wrap:wrap">
+        <div style="flex:1 1 240px;min-width:240px">
+          <div class="helper">First name</div>
+          <input id="first" name="first" class="input" autocomplete="given-name" required />
+        </div>
+        <div style="flex:1 1 240px;min-width:240px">
+          <div class="helper">Last name</div>
+          <input id="last" name="last" class="input" autocomplete="family-name" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
+      </div>
+    </form>
+  </main>
+
+  <script type="module">
+    import { setKV, setProgress } from './js/app.js';
+    setProgress(10);
+
+    const first = document.getElementById('first');
+    const last  = document.getElementById('last');
+    const btn   = document.getElementById('continueBtn');
+
+    function validate(){ btn.disabled = !(first.value.trim() && last.value.trim()); }
+    first.addEventListener('input', validate);
+    last.addEventListener('input', validate);
+
+    document.getElementById('nameForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      setKV('student', { first: first.value.trim(), last: last.value.trim(), ts: Date.now() });
+      // next page will be Module 1 – Ranking (we'll build it next)
+      window.location.href = 'm1_ranking.html';
+    });
+  </script>
+</body>
+</html>
