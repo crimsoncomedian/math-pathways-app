@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Equations & Inequalities – Question 2</title>
+  <title>Equations & Inequalities — Question 2</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
     .question{
       padding:1.25rem 1.25rem 1rem;border:1px solid #e5e7eb;border-radius:12px;background:#fff;
-      box-shadow:0 6px 16px rgba(0,0,0,.04);margin:1rem 0;
+      box-shadow:0 6px 16px rgba(0,0,0,.05);margin:1rem 0;
     }
     .qtext{font-size:1.05rem;line-height:1.5}
     .answer{margin-top:1rem}
@@ -40,118 +40,136 @@
     import { getKV, setKV, setProgress } from './js/app.js';
     setProgress(95);
 
-    const QUESTIONS = getKV('m2_questions', []);
-    const RANK      = getKV('m2_ranking', []);
-    const CONF      = getKV('m2_confidence', {});
-    const Q1        = getKV('m2_q1', null);
-    const ASKED     = getKV('m2_asked', []);
+    // ---------- Load context ----------
+    let QUESTIONS = getKV('m2_questions', []);
+    if (!Array.isArray(QUESTIONS) || QUESTIONS.length !== 5) {
+      QUESTIONS = [
+        { id: 'eq1', text: 'Solve for v: v + 6 = 13.' },
+        { id: 'eq2', text: 'Write the inequality using n as the variable: a number is at least 10.' },
+        { id: 'eq3', text: 'Solve for p: p − 7 = 4p + 9.' },
+        { id: 'eq4', text: 'Solve for x: (x − 2)/5 = 3x.' },
+        { id: 'eq5', text: 'Why do you reverse the inequality when you multiply or divide by a negative?' }
+      ];
+      setKV('m2_questions', QUESTIONS);
+    }
 
-    if (!Q1 || !Array.isArray(RANK) || RANK.length === 0 || QUESTIONS.length === 0){
+    const RANK = getKV('m2_ranking', []);     // ['eq1',...], easiest -> hardest
+    const CONF = getKV('m2_confidence', {});  // { eq1:'H'|'M'|'L' }
+    const Q1   = getKV('m2_q1', null);        // { id, text, answer, correct, timeSpent }
+    let ASKED  = getKV('m2_asked', []);
+
+    if (!Q1 || !Array.isArray(RANK) || RANK.length !== 5) {
       window.location.href = 'm2_ranking.html';
     }
 
-    const byId      = id => QUESTIONS.find(q => q.id === id);
+    const byId = id => QUESTIONS.find(q => q.id === id);
     const rankIndex = id => RANK.indexOf(id);
 
-    // Groups (arrays already easiest -> hardest by student rank)
+    // Build groups (preserving student's rank order)
     const H = RANK.filter(id => CONF[id] === 'H');
     const M = RANK.filter(id => CONF[id] === 'M');
     const L = RANK.filter(id => CONF[id] === 'L');
 
     const currentId   = Q1.id;
-    const currentConf = CONF[currentId];             // 'H' | 'M' | 'L'
+    const currentConf = CONF[currentId] || 'M'; // default M if missing
     const currentIdx  = rankIndex(currentId);
-    const wantHarder  = Q1.correct === true;         // harder if correct, easier if not
-    const dir         = wantHarder ? +1 : -1;
+
+    const wantHarder = Q1.correct === true;
+    const dir = wantHarder ? +1 : -1;
 
     function nextInSameGroup(id){
       const group = currentConf === 'H' ? H : currentConf === 'M' ? M : L;
       const i = group.indexOf(id);
-      if (i === -1) return null;
+      if (i < 0) return null;
       const j = i + dir;
       if (j < 0 || j >= group.length) return null;
-      const candidate = group[j];
-      return ASKED.includes(candidate) ? null : candidate;
+      const cand = group[j];
+      return ASKED.includes(cand) ? null : cand;
     }
 
-    function nearestByRank(){
-      // Nearest candidate in desired direction across all groups, excluding asked and Q1
+    function nearestAvailableByRank(){
       const candidates = RANK
         .filter(id => !ASKED.includes(id) && id !== currentId)
         .filter(id => wantHarder ? rankIndex(id) > currentIdx : rankIndex(id) < currentIdx);
 
-      if (candidates.length === 0) return null;
+      if (!candidates.length) return null;
 
       let best = null, bestDist = Infinity;
-      candidates.forEach(id => {
+      for (const id of candidates) {
         const d = Math.abs(rankIndex(id) - currentIdx);
-        if (d < bestDist){ best = id; bestDist = d; }
-      });
+        if (d < bestDist) { bestDist = d; best = id; }
+      }
       return best;
     }
 
     // Choose Q2
-    let q2Id = nextInSameGroup(currentId);
-    if (!q2Id) q2Id = nearestByRank();
+    let q2Id = nextInSameGroup(currentId) || nearestAvailableByRank();
     if (!q2Id) q2Id = RANK.find(id => !ASKED.includes(id) && id !== currentId) || currentId;
 
     const q2 = byId(q2Id);
-    if (!q2){ window.location.href = 'm2_ranking.html'; }
+    if (!q2) window.location.href = 'm2_ranking.html';
 
-    // Render prompt
+    // Render
     document.getElementById('qtext').textContent = q2.text;
 
-    // ---- Autograder (same as Q1) ----
+    // ---------- Timing ----------
+    const startTime = Date.now();
+
+    // ---------- Local autograder ----------
     function normalize(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
+
     function conceptualCheck(text){
       const t = normalize(text);
-      const hasNeg   = t.includes('negativ');
-      const hasFlip  = t.includes('flip') || t.includes('revers');
-      const hasMulDiv= t.includes('multiply') || t.includes('divide');
-      const hasIneq  = t.includes('inequal') || t.includes('sign') || t.includes('order');
+      const hasNeg    = t.includes('negativ');
+      const hasFlip   = t.includes('flip') || t.includes('revers');
+      const hasMulDiv = t.includes('multiply') || t.includes('divide');
+      const hasIneq   = t.includes('inequal') || t.includes('sign') || t.includes('order');
       return hasNeg && hasFlip && hasMulDiv && hasIneq;
     }
-    function checkAnswer(id, raw){
+
+    function isCorrect(id, raw){
       const a = normalize(raw);
       switch(id){
-        case 'eq1': return a === '7' || a === 'v=7';
-        case 'eq2': return a === 'n≥10' || a === 'n>=10';
-        case 'eq3': return a === '-16/3' || a === 'p=-16/3' || a === '-5.3333' || a === '-5.333' || a === '-5.33';
-        case 'eq4': return a === '-1/7' || a === 'x=-1/7' || a === '-0.142857' || a === '-0.1429';
-        case 'eq5': return conceptualCheck(raw);
-        default:    return false;
+        case 'eq1': // v + 6 = 13 → v = 7
+          return a === '7' || a === 'v=7' || a === 'v:7';
+        case 'eq2': // "at least 10" → n ≥ 10 (accept >=)
+          return a === 'n≥10' || a === 'n>=10' || a === 'n≥10.' || a === 'n>=10.';
+        case 'eq3': // p − 7 = 4p + 9  => p = -16/3 ≈ -5.333...
+          return a === 'p=-16/3' || a === '-16/3' || a === '-5.3333' || a === '-5.333' || a === '-5.33';
+        case 'eq4': // (x − 2)/5 = 3x => x = -1/7
+          return a === 'x=-1/7' || a === '-1/7' || a === '-0.142857' || a === '-0.1429';
+        case 'eq5': // conceptual explanation
+          return conceptualCheck(raw);
+        default:
+          return false;
       }
     }
 
-    // Handle submission
-    const submitBtn = document.getElementById('submitBtn');
+    // ---------- Submit ----------
     const msg = document.getElementById('msg');
-    const resp = document.getElementById('resp');
-
-    submitBtn.addEventListener('click', ()=>{
-      const val = resp.value;
-      if(!val || !val.trim()){
-        msg.style.display = 'block';
-        return;
-      }
+    document.getElementById('submitBtn').addEventListener('click', ()=>{
+      const input = (document.getElementById('resp').value || '').trim();
+      if (!input) { msg.style.display = 'block'; return; }
       msg.style.display = 'none';
 
-      const correct = checkAnswer(q2Id, val);
+      const timeSpent = Math.round((Date.now() - startTime) / 1000);
+      const correct   = isCorrect(q2Id, input);
 
       setKV('m2_q2', {
         id: q2Id,
         text: q2.text,
-        answer: val,
+        answer: input,
         correct,
+        timeSpent,
         basedOn: { q1: Q1.id, q1Correct: Q1.correct }
       });
 
-      const asked = getKV('m2_asked', []);
-      if(!asked.includes(q2Id)){
-        asked.push(q2Id);
-        setKV('m2_asked', asked);
+      if (!ASKED.includes(q2Id)) {
+        ASKED.push(q2Id);
+        setKV('m2_asked', ASKED);
       }
 
+      // Move to Module 2 reflection
       window.location.href = 'm2_reflection.html';
     });
   </script>
