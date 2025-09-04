@@ -7,111 +7,137 @@
   <link rel="stylesheet" href="css/style.css" />
   <style>
     body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background-color: #f9fafb;
-      font-family: system-ui, sans-serif;
-      margin: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; background-color: #f9fafb; font-family: system-ui, sans-serif; margin: 0;
     }
     .card {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-      text-align: center;
-      max-width: 450px;
-      width: 90%;
+      background: white; padding: 2rem; border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 92%;
     }
-    h1 {
-      margin-top: 0;
-      font-size: 1.75rem;
-      color: #111827;
-    }
-    p {
-      color: #374151;
-      font-size: 1.05rem;
-      margin: 0.75rem 0 1.5rem;
-    }
-    .actions {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-    .btn {
-      background-color: #2563eb;
-      color: white;
-      padding: 0.6rem 1.25rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    .btn:hover {
-      background-color: #1d4ed8;
-    }
-    .btn.secondary {
-      background-color: #e5e7eb;
-      color: #111827;
-    }
-    .btn.secondary:hover {
-      background-color: #d1d5db;
-    }
+    h1 { margin-top: 0; font-size: 1.75rem; color: #111827; }
+    p  { color: #374151; font-size: 1.05rem; margin: 0.75rem 0 1.25rem; }
+    .actions { display: flex; justify-content: center; gap: 1rem; margin-top: 1.25rem; }
+    .btn { background-color: #2563eb; color: #fff; padding: .6rem 1.25rem; border: 0; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn:hover { background-color: #1d4ed8; }
+    .btn.secondary { background-color: #e5e7eb; color: #111827; }
+    .btn.secondary:hover { background-color: #d1d5db; }
+    .note { font-size: .95rem; color: #6b7280; margin-top: .75rem; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>You're All Done! 🎉</h1>
     <p>Thanks for completing the assessment.</p>
-    <p>Your responses have been recorded.</p>
+    <p id="status">Preparing your submission…</p>
     <div class="actions">
-      <button id="restartBtn" class="btn secondary">Start Over</button>
-      <button id="exitBtn" class="btn">Exit</button>
+      <button id="restartBtn" class="btn secondary" type="button">Start Over</button>
+      <button id="exitBtn" class="btn" type="button">Exit</button>
     </div>
+    <p id="errorMsg" class="note hidden"></p>
   </div>
 
   <script type="module">
-  import { getKV } from './js/app.js';
+    // ---- Optional helper import with safe fallbacks ----
+    let getKV = null;      // preferred, if exported
+    let getAll = null;
+    try {
+      const mod = await import('./js/app.js');
+      if (typeof mod.getKV === 'function') getKV = mod.getKV;
+      if (typeof mod.getAll === 'function') getAll = mod.getAll;
+    } catch (e) {
+      console.warn('Optional js/app.js not found or has no exports; using local fallbacks.', e);
+    }
 
-  const firstName = getKV('firstName','');
-  const lastName  = getKV('lastName','');
-  const struggleReasons = getKV('struggle_reasons', []);
+    // Local fallback store API (matches the "survey" bag pattern used on other pages)
+    function readBag() {
+      try { return JSON.parse(localStorage.getItem('survey') || '{}'); }
+      catch { return {}; }
+    }
+    function fallbackGetKV(key, defVal=null) {
+      const bag = readBag();
+      return key in bag ? bag[key] : defVal;
+    }
 
-  function packModule(n){
-    const p = `m${n}`;
-    const q1 = getKV(`${p}_q1`, null); // {id,text,answer,correct,timeSpent}
-    const q2 = getKV(`${p}_q2`, null);
-    return {
-      rank:       getKV(`${p}_ranking`, []),
-      confidence: getKV(`${p}_confidence`, {}),
-      q1: q1 ? { id: q1.id, answer: q1.answer ?? "", correct: q1.correct ?? null, timeSpent: q1.timeSpent } : null,
-      q2: q2 ? { id: q2.id, answer: q2.answer ?? "", correct: q2.correct ?? null, timeSpent: q2.timeSpent } : null,
+    const safeGetKV = (key, defVal) => (getKV ? getKV(key, defVal) : fallbackGetKV(key, defVal));
+    const bag = getAll ? getAll() : readBag();
 
-      reflection: getKV(`${p}_reflection`, null)
+    // ---- Build payload from stored answers ----
+    // Name: earlier pages stored { first, last } under key "student"
+    const student = safeGetKV('student', { first:'', last:'' });
+
+    function packModule(n) {
+      const p = `m${n}`;
+      const q1 = safeGetKV(`${p}_q1`, null);  // {id,text,answer,correct,timeSpent}
+      const q2 = safeGetKV(`${p}_q2`, null);
+      return {
+        rank:       safeGetKV(`${p}_ranking`, []),
+        confidence: safeGetKV(`${p}_confidence`, {}),
+        q1: q1 ? { id: q1.id, answer: q1.answer ?? "", correct: q1.correct ?? null, timeSpent: q1.timeSpent ?? null } : null,
+        q2: q2 ? { id: q2.id, answer: q2.answer ?? "", correct: q2.correct ?? null, timeSpent: q2.timeSpent ?? null } : null,
+        reflection: safeGetKV(`${p}_reflection`, null)
+      };
+    }
+
+    const payload = {
+      student: { first: student.first || '', last: student.last || '' },
+      struggleReasons: safeGetKV('struggle_reasons', []),
+      m1: packModule(1),
+      m2: packModule(2),
+      m3: packModule(3),
+      m4: packModule(4),
+      _submittedAt: new Date().toISOString()
     };
-  }
 
-  const payload = {
-    firstName, lastName, struggleReasons,
-    m1: packModule(1),
-    m2: packModule(2),
-    m3: packModule(3),
-    m4: packModule(4)
-  };
+    // ---- Submit once to Apps Script ----
+    const statusEl = document.getElementById('status');
+    const errEl = document.getElementById('errorMsg');
 
-  fetch("YOUR_WEB_APP_URL_HERE", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  })
-  .then(r=>r.json()).then(console.log).catch(console.error);
-</script>
+    async function submitOnce() {
+      try {
+        statusEl.textContent = 'Submitting your responses…';
 
+        const res = await fetch('YOUR_WEB_APP_URL_HERE', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          // mode: 'cors' // uncomment if you need explicit CORS mode
+        });
 
+        if (!res.ok) {
+          const text = await res.text().catch(()=> '');
+          throw new Error(`HTTP ${res.status} ${res.statusText} ${text ? '- ' + text : ''}`);
+        }
+        // If your GAS returns JSON, you can read it:
+        // const data = await res.json().catch(()=> ({}));
+
+        statusEl.textContent = 'Submitted! Your responses have been recorded.';
+        errEl.classList.add('hidden');
+
+        // Clear local answers after a successful submit (optional)
+        try { localStorage.removeItem('survey'); } catch {}
+
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'We couldn’t submit your responses.';
+        errEl.textContent = 'Please check your connection and try again. Your answers are safe on this device.';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    // Auto-submit on load (so the user lands and it sends)
+    submitOnce();
+
+    // ---- Buttons ----
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      // optional: keep results even if submit failed; comment out next line if you want to always clear
+      // try { localStorage.removeItem('survey'); } catch {}
+      window.location.href = 'index.html';
+    });
+    document.getElementById('exitBtn').addEventListener('click', () => {
+      // Customize this as needed (home page, LMS, etc.)
+      window.location.href = 'https://example.com/';
+    });
+  </script>
 </body>
 </html>
