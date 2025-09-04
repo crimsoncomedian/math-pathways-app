@@ -80,18 +80,18 @@
 
   const firstName = getKV('firstName','');
   const lastName  = getKV('lastName','');
-  const struggleReasons = getKV('struggle_reasons', []); // array of strings
+  const struggleReasons = getKV('struggle_reasons', []);
 
   function packModule(n){
     const p = `m${n}`;
-    const q1 = getKV(`${p}_q1`, null);
+    const q1 = getKV(`${p}_q1`, null); // expect {id,text,answer,timeSpent,...}
     const q2 = getKV(`${p}_q2`, null);
     return {
-      rank:       getKV(`${p}_ranking`, []),      // ['fs1','fs5',...]
-      confidence: getKV(`${p}_confidence`, {}),   // {fs1:'M',...}
-      q1: q1 ? { id: q1.id, timeSpent: q1.timeSpent } : null,
-      q2: q2 ? { id: q2.id, timeSpent: q2.timeSpent } : null,
-      reflection: getKV(`${p}_reflection`, null)  // {difficulty, explain, ts}
+      rank:       getKV(`${p}_ranking`, []),
+      confidence: getKV(`${p}_confidence`, {}),
+      q1: q1 ? { id: q1.id, answer: q1.answer ?? "", timeSpent: q1.timeSpent } : null,
+      q2: q2 ? { id: q2.id, answer: q2.answer ?? "", timeSpent: q2.timeSpent } : null,
+      reflection: getKV(`${p}_reflection`, null)
     };
   }
 
@@ -103,15 +103,14 @@
     m4: packModule(4)
   };
 
-  fetch("https://script.google.com/macros/s/AKfycbw5jZzgcB9BmRjxvwU3Wbrwr1VFUy5hdGKfBzIpiLX98xdehdIiqj4j2_sdBScV5GBf/exec", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload)
-})
+  fetch("YOUR_WEB_APP_URL_HERE", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
   .then(r => r.json())
   .then(console.log)
   .catch(console.error);
-
 </script>
 
 </body>
