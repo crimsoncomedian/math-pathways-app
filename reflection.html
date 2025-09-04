@@ -54,7 +54,17 @@
   </main>
 
   <script type="module">
-    import { setKV, setProgress } from './js/app.js';
+    let setKV = () => {};
+    let setProgress = () => {};
+
+    try {
+      const mod = await import('./js/app.js');
+      if (typeof mod.setKV === 'function') setKV = mod.setKV;
+      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
+    } catch (e) {
+      console.warn('Optional app.js not found; continuing without it.', e);
+    }
+
     setProgress(18);
 
     const form = document.getElementById('reflectionForm');
@@ -72,9 +82,10 @@
       const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')]
         .map(cb => cb.value);
 
-      setKV('reflection', selected);
+      // Save under consistent key
+      setKV('struggle_reasons', selected);
 
-      // Next page will be Module 1 Ranking
+      // Go to Module 1 Ranking
       window.location.href = 'm1_ranking.html';
     });
   </script>
