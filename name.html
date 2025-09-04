@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Math Pathways – Your Name</title>
+
+  <!-- Keep this path if your stylesheet is in /css/style.css. 
+       If your file is at the repo root as style.css, change to href="style.css". -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -32,21 +35,45 @@
   </main>
 
   <script type="module">
-    import { setKV, setProgress } from './js/app.js';
-    setProgress(10);
+    // Make helpers optional so the page still works if js/app.js is missing.
+    let setKV = () => {};
+    let setProgress = () => {};
 
+    // Try to import optional helpers
+    try {
+      const mod = await import('./js/app.js');
+      if (mod?.setKV) setKV = mod.setKV;
+      if (mod?.setProgress) setProgress = mod.setProgress;
+    } catch (e) {
+      console.warn('Optional js/app.js not found or no exports; continuing without it.', e);
+    }
+
+    // Progress bar (no-op if helper isn't present)
+    try { setProgress(10); } catch {}
+
+    // Form wiring
     const first = document.getElementById('first');
     const last  = document.getElementById('last');
     const btn   = document.getElementById('continueBtn');
 
-    function validate(){ btn.disabled = !(first.value.trim() && last.value.trim()); }
+    function validate() {
+      btn.disabled = !(first.value.trim() && last.value.trim());
+    }
+
+    // Attach listeners
     first.addEventListener('input', validate);
     last.addEventListener('input', validate);
 
-    document.getElementById('nameForm').addEventListener('submit', (e)=>{
+    // Important: run once so autofill enables the button immediately
+    validate();
+
+    document.getElementById('nameForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      setKV('student', { first: first.value.trim(), last: last.value.trim(), ts: Date.now() });
-      // next page will be Module 1 – Ranking (we'll build it next)
+      try {
+        setKV('student', { first: first.value.trim(), last: last.value.trim(), ts: Date.now() });
+      } catch {}
+
+      // Make sure this file exists in your repo; otherwise change the target.
       window.location.href = 'm1_ranking.html';
     });
   </script>
