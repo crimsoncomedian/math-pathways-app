@@ -91,6 +91,7 @@
       confidence: getKV(`${p}_confidence`, {}),
       q1: q1 ? { id: q1.id, answer: q1.answer ?? "", correct: q1.correct ?? null, timeSpent: q1.timeSpent } : null,
       q2: q2 ? { id: q2.id, answer: q2.answer ?? "", correct: q2.correct ?? null, timeSpent: q2.timeSpent } : null,
+
       reflection: getKV(`${p}_reflection`, null)
     };
   }
