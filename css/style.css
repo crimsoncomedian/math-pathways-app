@@ -26,27 +26,28 @@ h1,h2{margin:.25rem 0 1rem}
 .draggable .qtext{line-height:1.35}
 .draggable .handle{cursor:grab; user-select:none; font-size:1.1rem; color:#94a3b8}
 .draggable.dragging{opacity:.8; outline:2px dashed #a5b4fc}
-/* ===== Reflection checkboxes ===== */
-.checkbox-group{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:.6rem .9rem;
-  margin:1rem 0 0;
-  padding:0;
-}
-@media (min-width:640px){
-  .checkbox-group{ grid-template-columns:1fr 1fr; }
-}
-.checkbox{
-  display:flex;
-  align-items:flex-start;
-  gap:.55rem;
-  line-height:1.35;
-  color:var(--ink);
-}
-.checkbox input[type="checkbox"]{
-  flex:0 0 auto;
-  width:1rem; height:1rem;
-  margin-top:.2rem;
+/* ===== Reflection checkboxes - single column ===== */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;  /* Force vertical stacking */
+  gap: 0.75rem;            /* Space between each option */
+  margin: 1rem 0 0;
+  padding: 0;
 }
 
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.checkbox input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--primary); /* Matches your theme */
+}
