@@ -41,17 +41,28 @@
     import { getKV, setKV, setProgress } from './js/app.js';
     setProgress(90);
 
-    // Load stored context
-    const QUESTIONS = getKV('m2_questions', []);   // [{id,text}]
-    const RANK      = getKV('m2_ranking', []);     // ['eq1','eq2',...], easiest -> hardest
-    const CONF      = getKV('m2_confidence', {});  // { eq1:'H'|'M'|'L', ... }
+    // ---------- Questions list (use cached or rebuild) ----------
+    let QUESTIONS = getKV('m2_questions', []);
+    if (!Array.isArray(QUESTIONS) || QUESTIONS.length !== 5) {
+      // Canonical list for Module 2 (IDs must match your rank/conf pages)
+      QUESTIONS = [
+        { id: 'eq1', text: 'Solve for v: v + 6 = 13.' },
+        { id: 'eq2', text: 'Write the inequality using n as the variable: a number is at least 10.' },
+        { id: 'eq3', text: 'Solve for p: p − 7 = 4p + 9.' },
+        { id: 'eq4', text: 'Solve for x: (x − 2)/5 = 3x.' },
+        { id: 'eq5', text: 'Why do you reverse the inequality when you multiply or divide by a negative?' }
+      ];
+      setKV('m2_questions', QUESTIONS);
+    }
 
-    if (!Array.isArray(RANK) || RANK.length === 0 || QUESTIONS.length === 0){
+    // ---------- Load stored context ----------
+    const RANK = getKV('m2_ranking', []);     // ['eq1','eq2',...], easiest -> hardest
+    const CONF = getKV('m2_confidence', {});  // { eq1:'H'|'M'|'L', ... }
+    if (!Array.isArray(RANK) || RANK.length === 0) {
       window.location.href = 'm2_ranking.html';
     }
 
     const byId = id => QUESTIONS.find(q => q.id === id);
-    const rankIndex = id => RANK.indexOf(id);
 
     // Build groups by confidence in ranked order (so ends align with hardest/easiest)
     const H = RANK.filter(id => CONF[id] === 'H');
@@ -63,7 +74,7 @@
     const pickEasiest        = g => g.length ? g[0] : null;
     const pickSecondEasiest  = g => g.length >= 2 ? g[1] : null;
 
-    // ----- Pivot selection rules -----
+    // ---------- Pivot selection rules (Q1) ----------
     let q1Id = null;
     if (H.length >= 2){
       q1Id = pickSecondHardest(H);
@@ -84,7 +95,10 @@
     // Render selected problem
     document.getElementById('qtext').textContent = q.text;
 
-    // ---- Simple autograder ----
+    // ---------- Timing ----------
+    const startTime = Date.now();
+
+    // ---------- Simple autograder ----------
     function normalize(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
 
     // For open-response conceptual (eq5), use keyword check (heuristic)
@@ -101,13 +115,13 @@
       const a = normalize(raw);
       switch(id){
         case 'eq1': // v + 6 = 13 → v = 7
-          return a === '7' || a === 'v=7';
-        case 'eq2': // "at least 10" → n ≥ 10  (accept >=)
-          return a === 'n≥10' || a === 'n>=10';
-        case 'eq3': // p − 7 = 4p + 9 → p = -16/3
-          return a === '-16/3' || a === 'p=-16/3' || a === '-5.3333' || a === '-5.333' || a === '-5.33';
-        case 'eq4': // (x − 2)/5 = 3x → x = -1/7
-          return a === '-1/7' || a === 'x=-1/7' || a === '-0.142857' || a === '-0.1429';
+          return a === '7' || a === 'v=7' || a === 'v:7';
+        case 'eq2': // "at least 10" → n ≥ 10 (accept >=)
+          return a === 'n≥10' || a === 'n>=10' || a === 'n≥10.' || a === 'n>=10.';
+        case 'eq3': // p − 7 = 4p + 9 → p = -16/3 ≈ -5.333...
+          return a === 'p=-16/3' || a === '-16/3' || a === '-5.3333' || a === '-5.333' || a === '-5.33';
+        case 'eq4': // (x − 2)/5 = 3x → x = -1/7 ≈ -0.142857
+          return a === 'x=-1/7' || a === '-1/7' || a === '-0.142857' || a === '-0.1429';
         case 'eq5': // conceptual explanation
           return conceptualCheck(raw);
         default:
@@ -115,6 +129,7 @@
       }
     }
 
+    // ---------- Submit ----------
     const submitBtn = document.getElementById('submitBtn');
     const msg = document.getElementById('msg');
     const resp = document.getElementById('resp');
@@ -127,14 +142,16 @@
       }
       msg.style.display = 'none';
 
-      const correct = checkAnswer(q1Id, val);
+      const timeSpent = Math.round((Date.now() - startTime) / 1000);
+      const correct   = checkAnswer(q1Id, val);
 
-      // Save Q1 result
+      // Save Q1 result (answers + correctness + time)
       setKV('m2_q1', {
         id: q1Id,
         text: q.text,
         answer: val,
-        correct
+        correct,
+        timeSpent
       });
 
       // Track asked to avoid repeats
