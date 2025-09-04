@@ -26,8 +26,4 @@ h1,h2{margin:.25rem 0 1rem}
 .draggable .qtext{line-height:1.35}
 .draggable .handle{cursor:grab; user-select:none; font-size:1.1rem; color:#94a3b8}
 .draggable.dragging{opacity:.8; outline:2px dashed #a5b4fc}
-/* Hide Back buttons globally, but never hide the Continue (#submitBtn) */
-.actions button:first-child:not(#submitBtn) {
-  display: none !important;
-}
 
