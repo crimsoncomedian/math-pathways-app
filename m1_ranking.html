@@ -15,17 +15,29 @@
 
     <ul id="rankList" class="sortable" aria-label="Rank questions from easiest to hardest"></ul>
 
-    <div class="actions" style="justify-content:space-between">
-      <button class="btn" type="button" onclick="window.location.href='reflection.html'">Back</button>
-      <button id="continueBtn" class="btn" type="button">Continue</button>
+    <div class="actions" style="justify-content:flex-end">
+      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
     </div>
   </main>
 
   <script type="module">
-    import { setKV, getKV, setProgress } from './js/app.js';
-    setProgress(25);
+    // Import helpers with fallback if js/app.js is missing
+    let setKV = () => {};
+    let getKV = () => null;
+    let setProgress = () => {};
+    try {
+      const mod = await import('./js/app.js');
+      if (typeof mod.setKV === 'function') setKV = mod.setKV;
+      if (typeof mod.getKV === 'function') getKV = mod.getKV;
+      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
+    } catch (e) {
+      console.warn('app.js not found or missing exports; continuing without it.', e);
+    }
 
-    // Foundational Skills questions (IDs are important for later logic)
+    // Set progress bar
+    try { setProgress(25); } catch {}
+
+    // Foundational Skills questions
     const QUESTIONS = [
       { id:'fs1', text:'Simplify 3y + 5y − 2.' },
       { id:'fs2', text:'Evaluate m² − 12 ÷ m, when m = 4.' },
@@ -35,14 +47,16 @@
     ];
 
     const listEl = document.getElementById('rankList');
+    const btn = document.getElementById('continueBtn');
 
-    // Render list (use saved order if the student returns)
+    // Restore saved ranking if exists
     const savedOrder = getKV('m1_ranking', null);
     const order = savedOrder && Array.isArray(savedOrder) && savedOrder.length === QUESTIONS.length
       ? savedOrder
       : QUESTIONS.map(q => q.id);
 
     function byId(id){ return QUESTIONS.find(q => q.id === id); }
+
     function render(){
       listEl.innerHTML = '';
       order.forEach((id, idx) => {
@@ -57,10 +71,17 @@
         `;
         listEl.appendChild(li);
       });
+      checkCompletion();
     }
     render();
 
-    // HTML5 drag & drop
+    // Enable Continue only if all items ranked
+    function checkCompletion(){
+      const items = [...listEl.querySelectorAll('li')];
+      btn.disabled = items.length !== QUESTIONS.length;
+    }
+
+    // Drag & drop
     let dragId = null;
     listEl.addEventListener('dragstart', (e)=>{
       const li = e.target.closest('li.draggable');
@@ -73,8 +94,8 @@
       const li = e.target.closest('li.draggable');
       if(li) li.classList.remove('dragging');
       dragId = null;
-      // update badges
       [...listEl.children].forEach((li,i)=> li.querySelector('.badge').textContent = i+1);
+      checkCompletion();
     });
     listEl.addEventListener('dragover', (e)=>{
       e.preventDefault();
@@ -98,12 +119,10 @@
       }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    // Save & continue
-    document.getElementById('continueBtn').addEventListener('click', ()=>{
+    // Save ranking + continue
+    btn.addEventListener('click', ()=>{
       const ids = [...listEl.querySelectorAll('li')].map(li => li.dataset.id);
-      // easiest → hardest
       setKV('m1_ranking', ids);
-      // also store the full texts alongside
       setKV('m1_questions', QUESTIONS);
       window.location.href = 'm1_confidence.html';
     });
