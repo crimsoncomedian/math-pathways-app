@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Question 2 — Adaptive Follow‑up (All Modules)</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .question{padding:1.25rem;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.04);margin:1rem 0}
+    .qtext{font-size:1.06rem;line-height:1.55}
+    .answer{margin-top:1rem}
+    .actions{display:flex;justify-content:center;margin-top:1rem}
+  </style>
+
+  <!-- MathJax for LaTeX rendering in labels (if present) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+</head>
+<body>
+  <div class="progress"><i id="progressBar" style="width:60%"></i></div>
+
+  <main class="container" role="main">
+    <h2 id="title">Question 2</h2>
+    <p class="sub">This question adapts based on your Question 1 result.</p>
+
+    <div id="qbox" class="question" aria-live="polite">
+      <div id="qtext" class="qtext math"></div>
+      <div class="answer">
+        <label for="resp" class="helper">Your answer</label>
+        <input id="resp" class="input" autocomplete="off" />
+        <p id="hint" class="helper" style="display:none"></p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <!-- Back intentionally removed for forward-only flow -->
+      <button id="submitBtn" class="btn" type="button">Continue</button>
+    </div>
+    <p id="msg" class="helper" style="display:none;color:#b91c1c">Please enter an answer.</p>
+  </main>
+
+  <script type="module">
+    // Helpers (fallbacks if app.js not present)
+    let setKV = () => {}; let getKV = () => null; let setProgress = (pct)=>{ try{ document.getElementById('progressBar').style.width=pct+'%'; }catch{}}
+    try {
+      const app = await import('./js/app.js');
+      if (app.setKV) setKV = app.setKV;
+      if (app.getKV) getKV = app.getKV;
+      if (app.setProgress) setProgress = app.setProgress;
+    } catch {}
+
+    // Load module data
+    const { MODULE_TITLES } = await import('./js/modules.js');
+
+    const params = new URLSearchParams(location.search);
+    const moduleId = params.get('module') || getKV('current_module') || 'M1';
+    setKV('current_module', moduleId);
+
+    // Page title
+    const titles = { M1:`M1 — ${MODULE_TITLES?.M1||'Foundational Skills'}`, M2:`M2 — ${MODULE_TITLES?.M2||'Equations & Inequalities'}`, M3:`M3 — ${MODULE_TITLES?.M3||'Functions'}`, M4:`M4 — ${MODULE_TITLES?.M4||'Polynomials'}` };
+    document.getElementById('title').textContent = `${titles[moduleId] || moduleId} — Question 2`;
+    try { setProgress(60); } catch {}
+
+    // Load prior step data
+    const QUESTIONS = getKV(`${moduleId}_questions`, []) || [];
+    const RANK      = getKV(`${moduleId}_rank`, []) || [];
+    const CONF      = getKV(`${moduleId}_confidence`, {}) || {};
+    const Q1        = getKV(`${moduleId}_q1`, null);
+    let   ASKED     = getKV(`${moduleId}_asked`, []);
+
+    // Guards
+    const missing = !Array.isArray(QUESTIONS) || QUESTIONS.length !== 5 || !Array.isArray(RANK) || RANK.length !== 5 || !Q1;
+    if (missing) {
+      window.location.assign('rank.html?module=' + encodeURIComponent(moduleId));
+    }
+
+    const byId = id => QUESTIONS.find(q => q.id === id);
+    const rankIndex = id => RANK.indexOf(id);
+
+    // --- Build confidence groups (order preserved from RANK: easiest -> hardest)
+    const H = RANK.filter(id => CONF[id] === 'H');
+    const M = RANK.filter(id => CONF[id] === 'M');
+    const L = RANK.filter(id => CONF[id] === 'L');
+
+    const currentId   = Q1.id;
+    const currentConf = CONF[currentId]; // 'H' | 'M' | 'L'
+    const currentIdx  = rankIndex(currentId);
+
+    // Per spec: if Q1 correct → next harder in same group; else next easier
+    const wantHarder = Q1.correct === true;
+    const dir = wantHarder ? +1 : -1;
+
+    function pickNextInSameGroup(id){
+      const group = currentConf === 'H' ? H : currentConf === 'M' ? M : L;
+      const i = group.indexOf(id);
+      if (i === -1) return null;
+      const j = i + dir;
+      if (j < 0 || j >= group.length) return null;
+      const candidate = group[j];
+      return ASKED.includes(candidate) ? null : candidate;
+    }
+
+    function nearestAvailableByRank(){
+      const candidates = RANK
+        .filter(id => !ASKED.includes(id) && id !== currentId)
+        .filter(id => wantHarder ? rankIndex(id) > currentIdx : rankIndex(id) < currentIdx);
+
+      if (candidates.length === 0) return null;
+
+      let best = null, bestDist = Infinity;
+      for (const id of candidates) {
+        const d = Math.abs(rankIndex(id) - currentIdx);
+        if (d < bestDist) { bestDist = d; best = id; }
+      }
+      return best;
+    }
+
+    // Choose Q2
+    let q2Id = pickNextInSameGroup(currentId) || nearestAvailableByRank();
+    if (!q2Id) q2Id = RANK.find(id => !ASKED.includes(id) && id !== currentId) || currentId; // final fallback
+
+    const q = byId(q2Id);
+    if (!q) {
+      window.location.assign('rank.html?module=' + encodeURIComponent(moduleId));
+    }
+
+    // Render question text (supports LaTeX if present)
+    const qtextEl = document.getElementById('qtext');
+    qtextEl.innerHTML = q.label || q.text || q.id;
+    if (window.MathJax?.typesetPromise) { window.MathJax.typesetPromise([qtextEl]).catch(()=>{}); }
+
+    // Timer
+    const t0 = Date.now();
+
+    // --- Minimal correctness checks (same spirit as Q1) ---
+    function norm(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
+    function checkAnswer(moduleId, qid, raw){
+      const a = norm(raw);
+      switch (moduleId) {
+        case 'M1':
+          switch(qid){
+            case 'M1_Easy':       return a === '8y-2' || a === '-2+8y';
+            case 'M1_Basic':      return a === '13';
+            case 'M1_Moderate':   return /^15\*?h\+40$/.test(a) || /^40\+15\*?h$/.test(a);
+            case 'M1_Challenging':return a === '-2x+7' || a === '7-2x';
+            case 'M1_Advanced':   return a === '4a-8' || a === '-8+4a';
+            default: return null;
+          }
+        case 'M2':
+          switch(qid){
+            case 'M2_Easy':       return a === '7';
+            case 'M2_Basic':      return /n\s*[>\u2265=]\s*10/.test(raw); // allow n>=10 or n\ge 10
+            case 'M2_Moderate':   return a === '-16/3' || a === '-5.3333' || a === '-5.33';
+            case 'M2_Challenging':return a === '-1/7' || a === '-0.142857' || a === '-0.1429';
+            case 'M2_Advanced':   return raw && raw.trim().length > 0 ? null : false; // conceptual — don’t auto-grade
+            default: return null;
+          }
+        default:
+          return null; // other modules: record answer/time; grade offline
+      }
+    }
+
+    // Submit
+    const submitBtn = document.getElementById('submitBtn');
+    const msg = document.getElementById('msg');
+    const resp = document.getElementById('resp');
+
+    submitBtn.addEventListener('click', () => {
+      const val = resp.value;
+      if (!val || !val.trim()) { msg.style.display = 'block'; return; }
+      msg.style.display = 'none';
+
+      const correct = checkAnswer(moduleId, q2Id, val);
+      const timeMs = Date.now() - t0;
+
+      // Save results under per-module key
+      setKV(`${moduleId}_q2`, {
+        id: q2Id,
+        label: q.label || q.text || q.id,
+        answer: val,
+        correct, // may be true/false/null
+        timeMs,
+        basedOn: { q1: Q1.id, q1Correct: Q1.correct, strategy: wantHarder ? 'harder' : 'easier' }
+      });
+
+      // Record asked to avoid repeats later
+      const askedKey = `${moduleId}_asked`;
+      if (!ASKED.includes(q2Id)) { ASKED.push(q2Id); setKV(askedKey, ASKED); }
+
+      // Proceed to module reflection
+      window.location.assign('reflection_module.html');
+      // If you still have per-module pages temporarily, use:
+      // window.location.assign(`${moduleId.toLowerCase()}_reflection.html`);
+    });
+  </script>
+</body>
+</html>
