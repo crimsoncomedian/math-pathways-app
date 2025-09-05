@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Question 1 — Adaptive Pivot (All Modules)</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .question{padding:1.25rem;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.04);margin:1rem 0}
+    .qtext{font-size:1.06rem;line-height:1.55}
+    .answer{margin-top:1rem}
+    .actions{display:flex;justify-content:center;margin-top:1rem}
+  </style>
+
+  <!-- MathJax for LaTeX rendering in labels (from modules.js) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+</head>
+<body>
+  <div class="progress"><i id="progressBar" style="width:45%"></i></div>
+
+  <main class="container" role="main">
+    <h2 id="title">Question 1</h2>
+    <p class="sub">This question was selected based on your rankings and confidence.</p>
+
+    <div id="qbox" class="question" aria-live="polite">
+      <div id="qtext" class="qtext math"></div>
+      <div class="answer">
+        <label for="resp" class="helper">Your answer</label>
+        <input id="resp" class="input" autocomplete="off" />
+        <p id="hint" class="helper" style="display:none"></p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <!-- Back intentionally removed to simplify forward-only flow -->
+      <button id="submitBtn" class="btn" type="button">Continue</button>
+    </div>
+    <p id="msg" class="helper" style="display:none;color:#b91c1c">Please enter an answer.</p>
+  </main>
+
+  <script type="module">
+    // Helpers (fallbacks if app.js not present)
+    let setKV = () => {}; let getKV = () => null; let setProgress = (pct)=>{ try{ document.getElementById('progressBar').style.width=pct+'%'; }catch{}}
+    try {
+      const app = await import('./js/app.js');
+      if (app.setKV) setKV = app.setKV;
+      if (app.getKV) getKV = app.getKV;
+      if (app.setProgress) setProgress = app.setProgress;
+    } catch {}
+
+    // Load module data
+    const { MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/modules.js');
+
+    const params = new URLSearchParams(location.search);
+    let moduleId = params.get('module') || getKV('current_module') || 'M1';
+    setKV('current_module', moduleId);
+
+    // Page title
+    const titles = { M1:`M1 — ${MODULE_TITLES?.M1||'Foundational Skills'}`, M2:`M2 — ${MODULE_TITLES?.M2||'Equations & Inequalities'}`, M3:`M3 — ${MODULE_TITLES?.M3||'Functions'}`, M4:`M4 — ${MODULE_TITLES?.M4||'Polynomials'}` };
+    document.getElementById('title').textContent = `${titles[moduleId] || moduleId} — Question 1`;
+    try { setProgress(45); } catch {}
+
+    // Load prior step data
+    const QUESTIONS = getKV(`${moduleId}_questions`, []) || [];
+    const RANK      = getKV(`${moduleId}_rank`, []) || [];
+    const CONF      = getKV(`${moduleId}_confidence`, {}) || {};
+
+    // Guard: if missing, send back to rank
+    if (!Array.isArray(QUESTIONS) || QUESTIONS.length !== 5 || !Array.isArray(RANK) || RANK.length !== 5) {
+      window.location.assign('rank.html?module=' + encodeURIComponent(moduleId));
+    }
+
+    const byId = id => QUESTIONS.find(q => q.id === id);
+
+    // Groups by confidence (order preserved from RANK: easiest -> hardest)
+    const H = RANK.filter(id => CONF[id] === 'H');
+    const M = RANK.filter(id => CONF[id] === 'M');
+    const L = RANK.filter(id => CONF[id] === 'L');
+
+    const pickHardest = group => group.length ? group[group.length-1] : null;
+    const pickSecondHardest = group => group.length >= 2 ? group[group.length-2] : null;
+    const pickEasiest = group => group.length ? group[0] : null;
+    const pickSecondEasiest = group => group.length >= 2 ? group[1] : null;
+
+    let q1Id = null;
+    if (H.length >= 2) {
+      q1Id = pickSecondHardest(H);
+    } else if (H.length >= 1 && M.length >= 1) {
+      q1Id = pickHardest(H);
+    } else if (H.length === 0 && M.length >= 1 && L.length === 0) {
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length >= 1 && L.length >= 1) {
+      q1Id = pickEasiest(M);
+    } else if (H.length === 0 && M.length === 0 && L.length >= 2) {
+      q1Id = pickSecondEasiest(L);
+    }
+    if (!q1Id) { q1Id = RANK[Math.floor(RANK.length/2)]; }
+
+    const q = byId(q1Id);
+    if (!q) {
+      window.location.assign('rank.html?module=' + encodeURIComponent(moduleId));
+    }
+
+    // Render question text (supports LaTeX if present)
+    const qtextEl = document.getElementById('qtext');
+    qtextEl.innerHTML = q.label || q.text || q.id;
+    if (window.MathJax?.typesetPromise) { window.MathJax.typesetPromise([qtextEl]).catch(()=>{}); }
+
+    // Timer
+    const t0 = Date.now();
+
+    // --- Minimal correctness checks where feasible ---
+    function norm(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,''); }
+
+    function checkAnswer(moduleId, qid, raw){
+      const a = norm(raw);
+      switch (moduleId) {
+        case 'M1':
+          switch(qid){
+            case 'M1_Easy':       return a === '8y-2' || a === '-2+8y';
+            case 'M1_Basic':      return a === '13';
+            case 'M1_Moderate':   return /^15\*?h\+40$/.test(a) || /^40\+15\*?h$/.test(a);
+            case 'M1_Challenging':return a === '-2x+7' || a === '7-2x';
+            case 'M1_Advanced':   return a === '4a-8' || a === '-8+4a';
+            default: return null;
+          }
+        case 'M2':
+          switch(qid){
+            case 'M2_Easy':       return a === '7';
+            case 'M2_Basic':      return /n\s*[>\u2265=]\s*10/.test(raw); // allow n>=10 or n\ge 10
+            case 'M2_Moderate':   return a === '-16/3' || a === '-5.3333' || a === '-5.33';
+            case 'M2_Challenging':return a === '-1/7' || a === '-0.142857' || a === '-0.1429';
+            case 'M2_Advanced':   return raw && raw.trim().length > 0 ? null : false; // conceptual — don’t auto-grade
+            default: return null;
+          }
+        default:
+          return null; // for conceptual or not-yet-keyed items
+      }
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    const msg = document.getElementById('msg');
+    const resp = document.getElementById('resp');
+
+    submitBtn.addEventListener('click', () => {
+      const val = resp.value;
+      if (!val || !val.trim()) { msg.style.display = 'block'; return; }
+      msg.style.display = 'none';
+
+      const correct = checkAnswer(moduleId, q1Id, val);
+      const timeMs = Date.now() - t0;
+
+      // Save results under per-module key
+      setKV(`${moduleId}_q1`, {
+        id: q1Id,
+        label: q.label || q.text || q.id,
+        answer: val,
+        correct, // may be true/false/null
+        timeMs
+      });
+
+      // Track asked questions to avoid repeats later
+      const askedKey = `${moduleId}_asked`;
+      const asked = getKV(askedKey, []);
+      if (!asked.includes(q1Id)) { asked.push(q1Id); setKV(askedKey, asked); }
+
+      // Proceed to adaptive Q2
+      window.location.assign('q2.html');
+    });
+  </script>
+</body>
+</html>
