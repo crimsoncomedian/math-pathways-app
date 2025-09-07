@@ -54,42 +54,40 @@
   </main>
 
   <script type="module">
-  // Optional helpers with safe fallbacks
-  let setKV = () => {};
-  let setProgress = () => {};
-  try {
-    const mod = await import('./js/app.js');         // will succeed only if present/valid
-    if (typeof mod.setKV === 'function') setKV = mod.setKV;
-    if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
-  } catch (e) {
-    console.warn('app.js not found or no exports; continuing without it.', e);
-  }
+    // Optional helpers with safe fallbacks
+    let setKV = () => {};
+    let setProgress = () => {};
+    try {
+      const mod = await import('./js/app.js');
+      if (typeof mod.setKV === 'function') setKV = mod.setKV;
+      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
+    } catch (e) {
+      console.warn('app.js not found or no exports; continuing without it.', e);
+    }
 
-  // Visual progress (no-op if helper missing)
-  try { setProgress(18); } catch {}
+    // Visual progress
+    try { setProgress(18); } catch {}
 
-  const form = document.getElementById('reflectionForm');
-  const btn  = document.getElementById('continueBtn');
+    const form = document.getElementById('reflectionForm');
+    const btn  = document.getElementById('continueBtn');
 
-  // Enable Continue when at least one option is checked
-  function updateState() {
-    const selected = form.querySelectorAll('input[type="checkbox"]:checked');
-    btn.disabled = selected.length === 0;
-  }
-  form.addEventListener('change', updateState);
-  updateState(); // in case of autofill / pre-checked
+    // Enable Continue when at least one option is checked
+    function updateState() {
+      const selected = form.querySelectorAll('input[type="checkbox"]:checked');
+      btn.disabled = selected.length === 0;
+    }
+    form.addEventListener('change', updateState);
+    updateState();
 
-  // Save + navigate (navigate even if save fails)
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+    // Save + navigate
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+      try { setKV('struggle_reasons', selected); } catch (err) { console.warn(err); }
 
-    try { setKV('struggle_reasons', selected); } catch (err) { console.warn(err); }
-
-    // Important: make sure this file exists at the same folder level as reflection.html
-    window.location.assign('m1_ranking.html');
-  });
-</script>
-
+      // Redirect to module selection (tiles)
+      window.location.assign('modules.html');
+    });
+  </script>
 </body>
 </html>
