@@ -1,53 +1,189 @@
-:root{--bg:#f7f7ff;--card:#fff;--ink:#1f2937;--muted:#6b7280;--primary:#3a6df0;--ring:rgba(58,109,240,.2)}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
-.container{max-width:720px;margin:4rem auto;padding:2rem;background:var(--card);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.06)}
-h1,h2{margin:.25rem 0 1rem}
-.sub{color:var(--muted);margin:-.5rem 0 1.25rem}
-.row{display:flex;gap:1rem}
-.input{width:100%;padding:.9rem 1rem;border:1px solid #e5e7eb;border-radius:10px;font-size:1rem}
-.input:focus{outline:none;box-shadow:0 0 0 5px var(--ring);border-color:var(--primary)}
-.btn{appearance:none;border:0;border-radius:10px;background:var(--primary);color:#fff;padding:.9rem 1.25rem;font-weight:600;cursor:pointer;transition:.15s transform}
-.btn[disabled]{opacity:.5;cursor:not-allowed}
-.btn:hover:not([disabled]){transform:translateY(-1px)}
-.actions{display:flex;justify-content:flex-end;margin-top:1.25rem}
-.progress{height:8px;background:#e6e9ff;border-radius:999px;overflow:hidden;margin:0 auto 1.25rem;max-width:720px}
-.progress>i{display:block;height:100%;width:0;background:var(--primary)}
-.helper{font-size:.9rem;color:var(--muted);margin:.25rem 0 .5rem}
-.sortable{list-style:none;margin:1rem 0;padding:0;display:flex;flex-direction:column;gap:.75rem}
-.draggable{
-  display:grid; grid-template-columns:auto 1fr auto; align-items:center;
-  gap:.75rem; padding:1rem; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
-  box-shadow:0 6px 16px rgba(0,0,0,.04);
-}
-.draggable .badge{
-  background:#eef2ff; color:#334155; font-weight:600; padding:.25rem .6rem; border-radius:999px; min-width:2rem; text-align:center;
-}
-.draggable .qtext{line-height:1.35}
-.draggable .handle{cursor:grab; user-select:none; font-size:1.1rem; color:#94a3b8}
-.draggable.dragging{opacity:.8; outline:2px dashed #a5b4fc}
-/* ===== Reflection checkboxes - single column ===== */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;  /* Force vertical stacking */
-  gap: 0.75rem;            /* Space between each option */
-  margin: 1rem 0 0;
+/* Reset + base */
+* {
+  box-sizing: border-box;
+  margin: 0;
   padding: 0;
 }
 
-.checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+body {
+  font-family: 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  background: #f5f7fb;
+  color: #333;
+  padding: 2rem;
+}
+
+/* Container */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  padding: 2.5rem 3rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+}
+
+/* Headings */
+h1, h2 {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.sub {
   font-size: 1rem;
-  line-height: 1.5;
-  color: var(--ink);
+  color: #777;
+  margin-bottom: 2rem;
+}
+
+/* Button */
+.btn {
+  display: inline-block;
+  background-color: #4a90e2;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn:hover {
+  background-color: #357ec7;
+}
+
+.btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Form + checkbox group */
+form {
+  margin-top: 1rem;
+}
+
+.checkbox-group {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .checkbox input[type="checkbox"] {
-  flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
-  margin: 0;
-  accent-color: var(--primary); /* Matches your theme */
+  margin-right: 0.5rem;
+}
+
+.checkbox {
+  font-size: 1rem;
+  color: #444;
+  cursor: pointer;
+}
+
+/* Actions row */
+.actions {
+  text-align: right;
+}
+
+/* Progress bar */
+.progress {
+  height: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  background-color: #4a90e2;
+  transition: width 0.3s ease;
+}
+
+/* Module tiles (used on modules.html) */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.module-tile {
+  background: white;
+  border: 2px solid #ccc;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+}
+
+.module-tile:hover {
+  border-color: #4a90e2;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+}
+
+.module-code {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2d2d2d;
+  margin-bottom: 0.5rem;
+}
+
+.module-title {
+  font-size: 1rem;
+  color: #666;
+}
+
+/* Drag and drop list (used in ranking) */
+#sortableList {
+  list-style: none;
+  padding-left: 0;
+}
+
+#sortableList li {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  cursor: grab;
+  transition: background 0.2s ease;
+}
+
+#sortableList li:hover {
+  background: #e6eefc;
+}
+
+/* Confidence emoji buttons */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.emoji-button {
+  font-size: 2rem;
+  padding: 1rem;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.emoji-button:hover {
+  transform: scale(1.05);
+}
+
+.emoji-button.selected {
+  border-color: #4a90e2;
+  background: #e8f0fe;
 }
