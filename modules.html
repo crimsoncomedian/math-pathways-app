@@ -2,92 +2,104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Math Pathways – Reflection</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Choose a Module</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .module-tile {
+      background: white;
+      border: 2px solid #ccc;
+      border-radius: 1rem;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .module-tile:hover {
+      border-color: #4a90e2;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-3px);
+    }
+
+    .module-code {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2d2d2d;
+      margin-bottom: 0.5rem;
+    }
+
+    .module-title {
+      font-size: 1rem;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-  <!-- Progress Bar -->
-  <div class="progress"><i style="width:18%"></i></div>
-
   <main class="container" role="main">
-    <h2>Thinking About Math</h2>
-    <p class="sub">Which of the following best describe why you sometimes get wrong answers?  
-    Select all that apply.</p>
+    <h2>Choose a Module</h2>
+    <p class="sub">Start with any module. You can come back to pick another when you’re done.</p>
 
-    <form id="reflectionForm">
-      <div class="checkbox-group">
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Difficulty understanding the question">
-          Difficulty understanding the question
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Difficulty understanding the math">
-          Difficulty understanding the math
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Making silly math mistakes">
-          Making silly math mistakes
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Feeling anxiety about math">
-          Feeling anxiety about math
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Overthinking the problem">
-          Overthinking the problem
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="Being careless or rushing">
-          Being careless or rushing
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="reason" value="I don’t typically struggle with math">
-          I don’t typically struggle with math
-        </label>
+    <div class="module-grid">
+      <div class="module-tile" data-module="M1">
+        <div class="module-code">M1</div>
+        <div class="module-title">Foundational Skills</div>
       </div>
-
-      <div class="actions">
-        <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
+      <div class="module-tile" data-module="M2">
+        <div class="module-code">M2</div>
+        <div class="module-title">Equations & Inequalities</div>
       </div>
-    </form>
+      <div class="module-tile" data-module="M3">
+        <div class="module-code">M3</div>
+        <div class="module-title">Functions</div>
+      </div>
+      <div class="module-tile" data-module="M4">
+        <div class="module-code">M4</div>
+        <div class="module-title">Polynomials</div>
+      </div>
+    </div>
   </main>
 
   <script type="module">
-    // Optional helpers with safe fallbacks
-    let setKV = () => {};
-    let setProgress = () => {};
+    // Try to import helper functions from app.js
     try {
       const mod = await import('./js/app.js');
-      if (typeof mod.setKV === 'function') setKV = mod.setKV;
-      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
+      if (typeof mod.setKV === 'function') {
+        document.querySelectorAll('.module-tile').forEach(tile => {
+          tile.addEventListener('click', () => {
+            const module = tile.dataset.module;
+            mod.setKV('selected_module', module);
+            window.location.href = 'rank.html';
+          });
+        });
+      } else {
+        // Fallback if no setKV available
+        document.querySelectorAll('.module-tile').forEach(tile => {
+          tile.addEventListener('click', () => {
+            const module = tile.dataset.module;
+            sessionStorage.setItem('selected_module', module);
+            window.location.href = 'rank.html';
+          });
+        });
+      }
     } catch (e) {
-      console.warn('app.js not found or no exports; continuing without it.', e);
+      console.warn('Could not load app.js, falling back to sessionStorage');
+      document.querySelectorAll('.module-tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          const module = tile.dataset.module;
+          sessionStorage.setItem('selected_module', module);
+          window.location.href = 'rank.html';
+        });
+      });
     }
-
-    // Visual progress
-    try { setProgress(18); } catch {}
-
-    const form = document.getElementById('reflectionForm');
-    const btn  = document.getElementById('continueBtn');
-
-    // Enable Continue when at least one option is checked
-    function updateState() {
-      const selected = form.querySelectorAll('input[type="checkbox"]:checked');
-      btn.disabled = selected.length === 0;
-    }
-    form.addEventListener('change', updateState);
-    updateState();
-
-    // Save + navigate
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
-      try { setKV('struggle_reasons', selected); } catch (err) { console.warn(err); }
-
-      // Redirect to module selection (tiles)
-      window.location.assign('modules.html');
-    });
   </script>
 </body>
 </html>
