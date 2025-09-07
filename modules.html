@@ -1,77 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Select a Module</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="css/style.css" rel="stylesheet" />
-  <style>
-    /* Minimal, plays nice with your existing CSS */
-    .grid { display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap:1rem; }
-    .tile {
-      display:flex; align-items:center; justify-content:center; text-align:center;
-      padding:2rem; border:2px solid #ddd; border-radius:16px; cursor:pointer;
-      transition: transform .08s ease, box-shadow .08s ease;
-      user-select:none; min-height:140px; background:#fff;
-    }
-    .tile:hover, .tile:focus { transform: translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.08) }
-    .tile h3 { margin:0 .5rem 0 0; font-size:1.1rem }
-    .tile small { display:block; opacity:.8; margin-top:.25rem }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Math Pathways – Reflection</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Progress Bar -->
+  <div class="progress"><i style="width:18%"></i></div>
+
   <main class="container" role="main">
-    <h1>Choose a Module</h1>
-    <p class="sub">Start with any module. You can come back to pick another when you’re done.</p>
+    <h2>Thinking About Math</h2>
+    <p class="sub">Which of the following best describe why you sometimes get wrong answers?  
+    Select all that apply.</p>
 
-    <section class="grid" id="moduleGrid">
-      <button class="tile" data-module="M1" aria-label="Foundational Skills">
-        <div>
-          <h3>🧱 M1</h3>
-          <small>Foundational Skills</small>
-        </div>
-      </button>
+    <form id="reflectionForm">
+      <div class="checkbox-group">
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Difficulty understanding the question">
+          Difficulty understanding the question
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Difficulty understanding the math">
+          Difficulty understanding the math
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Making silly math mistakes">
+          Making silly math mistakes
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Feeling anxiety about math">
+          Feeling anxiety about math
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Overthinking the problem">
+          Overthinking the problem
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="Being careless or rushing">
+          Being careless or rushing
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="reason" value="I don’t typically struggle with math">
+          I don’t typically struggle with math
+        </label>
+      </div>
 
-      <button class="tile" data-module="M2" aria-label="Equations and Inequalities">
-        <div>
-          <h3>🟰 M2</h3>
-          <small>Equations &amp; Inequalities</small>
-        </div>
-      </button>
-
-      <button class="tile" data-module="M3" aria-label="Functions">
-        <div>
-          <h3>📈 M3</h3>
-          <small>Functions</small>
-        </div>
-      </button>
-
-      <button class="tile" data-module="M4" aria-label="Polynomials">
-        <div>
-          <h3>🔢 M4</h3>
-          <small>Polynomials</small>
-        </div>
-      </button>
-    </section>
+      <div class="actions">
+        <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
+      </div>
+    </form>
   </main>
 
   <script type="module">
-    // Optional: use your shared helpers if present
+    // Optional helpers with safe fallbacks
     let setKV = () => {};
+    let setProgress = () => {};
     try {
       const mod = await import('./js/app.js');
       if (typeof mod.setKV === 'function') setKV = mod.setKV;
-      if (typeof mod.setProgress === 'function') mod.setProgress(20); // example
-    } catch {}
+      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
+    } catch (e) {
+      console.warn('app.js not found or no exports; continuing without it.', e);
+    }
 
-    // Handle clicks → store selection and go to shared rank page
-    document.getElementById('moduleGrid').addEventListener('click', (e) => {
-      const tile = e.target.closest('[data-module]');
-      if (!tile) return;
-      const moduleId = tile.dataset.module; // "M1" | "M2" | "M3" | "M4"
-      try { setKV('current_module', moduleId); } catch {}
-      // Also pass via query string so the rank page can work even if storage is blocked
-      window.location.assign(`rank.html?module=${encodeURIComponent(moduleId)}`);
+    // Visual progress
+    try { setProgress(18); } catch {}
+
+    const form = document.getElementById('reflectionForm');
+    const btn  = document.getElementById('continueBtn');
+
+    // Enable Continue when at least one option is checked
+    function updateState() {
+      const selected = form.querySelectorAll('input[type="checkbox"]:checked');
+      btn.disabled = selected.length === 0;
+    }
+    form.addEventListener('change', updateState);
+    updateState();
+
+    // Save + navigate
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const selected = [...form.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+      try { setKV('struggle_reasons', selected); } catch (err) { console.warn(err); }
+
+      // Redirect to module selection (tiles)
+      window.location.assign('modules.html');
     });
   </script>
 </body>
