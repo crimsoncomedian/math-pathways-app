@@ -1,94 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Confidence Ranking</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="utf-8" />
+  <title>Rate Your Confidence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 2rem;
+    }
+
+    .progress {
+      background: #eee;
+      height: 6px;
+      margin: 0 0 1.5rem 0;
+    }
+
+    .progress i {
+      display: block;
+      background: #4f46e5;
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    main.container {
+      background: white;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sub {
+      font-size: 1rem;
+      color: #444;
+      margin-bottom: 1.5rem;
+    }
+
+    .question {
+      margin-bottom: 1.5rem;
+    }
+
+    .question p {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .confidence-scale {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .confidence-scale label {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 0 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    .confidence-scale input[type="radio"] {
+      display: none;
+    }
+
+    .confidence-scale input[type="radio"]:checked + label {
+      background-color: #4f46e5;
+      color: white;
+      font-weight: bold;
+      border-color: #4f46e5;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
+      }
+
+      main.container {
+        padding: 1.5rem 1rem;
+      }
+
+      .confidence-scale {
+        flex-direction: column;
+      }
+
+      .confidence-scale label {
+        width: 100%;
+        margin: 0.25rem 0;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="progress"><i style="width: 40%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:60%"></i></div>
 
-  <main class="card">
-    <h1>How confident do you feel about each problem?</h1>
-    <p id="module-title" class="text-muted"></p>
+  <main class="container" role="main">
+    <h2>Rate Your Confidence</h2>
+    <p class="sub">How confident are you about answering each question?</p>
 
-    <div class="emoji-key card">
-      <strong>Confidence key:</strong>
-      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
+    <div id="questions"></div>
+
+    <div class="actions">
+      <button id="submitBtn" class="btn" disabled>Continue</button>
     </div>
-
-    <form id="confidence-form" class="vertical-gap"></form>
-
-    <button id="continue" disabled>Continue</button>
   </main>
 
   <script type="module">
-    import { getKV, setKV, MODULE_TITLES, setProgress } from './app.js';
+    const getKV = window.getKV || (() => null);
+    const setKV = window.setKV || (() => {});
+    const setProgress = window.setProgress || ((pct) => {
+      try {
+        document.getElementById('progressBar').style.width = pct + '%';
+      } catch {}
+    });
 
-    const currentModule = getKV('currentModule');
-    const ranked = getKV('rankings')?.[currentModule] || [];
-    const confidence = {};
-    const form = document.getElementById('confidence-form');
-    const continueBtn = document.getElementById('continue');
+    setProgress(60);
 
-    // Set header info
-    if (currentModule && MODULE_TITLES[currentModule]) {
-      document.getElementById('module-title').textContent =
-        `Module: ${currentModule} — ${MODULE_TITLES[currentModule]}`;
+    const moduleId =
+      getKV('current_module') ||
+      getKV('selected_module') ||
+      sessionStorage.getItem('selected_module') ||
+      'M1';
+
+    const questions = getKV(`${moduleId}_questions`, []);
+    const saved = getKV(`${moduleId}_confidence`, {});
+
+    const container = document.getElementById('questions');
+    const btn = document.getElementById('submitBtn');
+
+    function renderQuestions() {
+      container.innerHTML = '';
+      questions.forEach((q, i) => {
+        const id = `q-${q.id}`;
+        const div = document.createElement('div');
+        div.className = 'question';
+
+        const p = document.createElement('p');
+        p.textContent = `Q${i + 1}: ${q.label}`;
+        div.appendChild(p);
+
+        const scale = document.createElement('div');
+        scale.className = 'confidence-scale';
+
+        for (let j = 1; j <= 5; j++) {
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = id;
+          input.id = `${id}-${j}`;
+          input.value = j;
+          if (saved?.[q.id] == j) input.checked = true;
+
+          const label = document.createElement('label');
+          label.htmlFor = `${id}-${j}`;
+          label.textContent = j;
+
+          input.addEventListener('change', checkComplete);
+
+          scale.appendChild(input);
+          scale.appendChild(label);
+        }
+
+        div.appendChild(scale);
+        container.appendChild(div);
+      });
     }
 
-    // Render confidence rows
-    ranked.forEach((qText, index) => {
-      const row = document.createElement('div');
-      row.className = 'confidence-row';
-
-      const qLabel = document.createElement('div');
-      qLabel.className = 'question-label';
-      qLabel.textContent = qText;
-
-      const options = document.createElement('div');
-      options.className = 'emoji-options';
-
-      ['😟', '😐', '😄'].forEach((emoji, level) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'emoji-btn';
-        btn.textContent = emoji;
-
-        btn.addEventListener('click', () => {
-          // Mark selected button
-          options.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-
-          confidence[qText] = level;
-          checkAllAnswered();
-        });
-
-        options.appendChild(btn);
+    function checkComplete() {
+      const values = {};
+      questions.forEach((q) => {
+        const radios = document.getElementsByName(`q-${q.id}`);
+        for (let radio of radios) {
+          if (radio.checked) {
+            values[q.id] = Number(radio.value);
+            break;
+          }
+        }
       });
 
-      row.appendChild(qLabel);
-      row.appendChild(options);
-      form.appendChild(row);
-    });
-
-    // Enable continue when all are answered
-    function checkAllAnswered() {
-      if (Object.keys(confidence).length === ranked.length) {
-        continueBtn.disabled = false;
-      }
+      const complete = Object.keys(values).length === questions.length;
+      btn.disabled = !complete;
+      if (complete) setKV(`${moduleId}_confidence`, values);
     }
 
-    continueBtn.addEventListener('click', () => {
-      const allConfidence = getKV('confidence') || {};
-      allConfidence[currentModule] = confidence;
-      setKV('confidence', allConfidence);
-      setProgress(60);
-      window.location.href = 'q1.html';
-    });
+    renderQuestions();
+    checkComplete();
 
-    setProgress(40);
+    btn.addEventListener('click', () => {
+      location.href = 'practice.html';
+    });
   </script>
 </body>
 </html>
