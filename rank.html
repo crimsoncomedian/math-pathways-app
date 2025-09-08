@@ -78,7 +78,7 @@
     let MODULE_TITLES, MODULE_QUESTIONS;
     try {
       // CRITICAL: file must be at /js/modules.js (case-sensitive on GitHub Pages)
-      ({ MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/modules.js'));
+      ({ MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/app.js'));
     } catch (e) {
       console.error('[rank] Failed to import ./js/modules.js', e);
       // Minimal emergency fallback so UI doesn't go blank
