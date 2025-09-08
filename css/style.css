@@ -1,4 +1,6 @@
-/* Reset + base */
+/* =========
+   BASE STYLES
+   ========= */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,184 +8,227 @@
 }
 
 body {
-  font-family: 'Segoe UI', sans-serif;
-  line-height: 1.6;
-  background: #f5f7fb;
-  color: #333;
-  padding: 2rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background-color: #f7f9fc;
+  color: #222;
+  line-height: 1.5;
 }
 
-/* Container */
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
-  padding: 2.5rem 3rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-}
-
-/* Headings */
-h1, h2 {
+h1, h2, h3 {
   font-weight: 700;
-  color: #1a1a1a;
+  margin-bottom: 0.5em;
 }
 
-h2 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-}
-
-.sub {
+p, label {
   font-size: 1rem;
-  color: #777;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5em;
 }
 
-/* Button */
-.btn {
-  display: inline-block;
-  background-color: #4a90e2;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
+a {
+  color: #0366d6;
+  text-decoration: none;
 }
 
-.btn:hover {
-  background-color: #357ec7;
+.container {
+  max-width: 700px;
+  margin: 2rem auto;
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-.btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+.stack-lg > * + * {
+  margin-top: 1.5rem;
 }
 
-/* Form + checkbox group */
-form {
-  margin-top: 1rem;
-}
-
-.checkbox-group {
-  display: grid;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.checkbox input[type="checkbox"] {
-  margin-right: 0.5rem;
-}
-
-.checkbox {
-  font-size: 1rem;
-  color: #444;
-  cursor: pointer;
-}
-
-/* Actions row */
-.actions {
-  text-align: right;
-}
-
-/* Progress bar */
+/* =========
+   PROGRESS BAR
+   ========= */
 .progress {
-  height: 10px;
-  background-color: #e0e0e0;
-  border-radius: 5px;
-  margin-bottom: 1.5rem;
-  overflow: hidden;
+  height: 8px;
+  background-color: #e4e4e4;
 }
-
 .progress i {
   display: block;
   height: 100%;
-  background-color: #4a90e2;
-  transition: width 0.3s ease;
+  width: 0%;
+  background-color: #4285f4;
+  transition: width 0.3s ease-in-out;
 }
 
-/* Module tiles (used on modules.html) */
-.module-grid {
+/* =========
+   BUTTONS
+   ========= */
+.btn {
+  background-color: #ccc;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.btn:hover:enabled {
+  background-color: #666;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========
+   MODULE SELECT
+   ========= */
+.modules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 2rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
   margin-top: 2rem;
 }
 
 .module-tile {
-  background: white;
-  border: 2px solid #ccc;
-  border-radius: 1rem;
-  padding: 2rem;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  padding: 1.5rem;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s;
 }
 
 .module-tile:hover {
-  border-color: #4a90e2;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-3px);
+  border-color: #4285f4;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
-.module-code {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2d2d2d;
-  margin-bottom: 0.5rem;
+.module-tile.selected {
+  border-color: #4285f4;
+  background-color: #eaf1fe;
 }
 
-.module-title {
-  font-size: 1rem;
-  color: #666;
+.module-tile .title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
 }
 
-/* Drag and drop list (used in ranking) */
-#sortableList {
+.module-tile .desc {
+  font-size: 0.95rem;
+  color: #555;
+}
+
+/* =========
+   RANKING QUESTIONS
+   ========= */
+.sortable-list {
   list-style: none;
-  padding-left: 0;
+  margin-top: 1rem;
+  padding: 0;
 }
 
-#sortableList li {
-  background: #f0f0f0;
-  border: 1px solid #ddd;
+.sortable-item {
   padding: 1rem;
+  background-color: #fff;
+  border-radius: 10px;
   margin-bottom: 0.75rem;
-  border-radius: 6px;
+  border: 1px solid #ddd;
   cursor: grab;
-  transition: background 0.2s ease;
+  transition: box-shadow 0.2s ease-in-out;
 }
 
-#sortableList li:hover {
-  background: #e6eefc;
+.sortable-item:hover {
+  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
 }
 
-/* Confidence emoji buttons */
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
-  margin-top: 1.5rem;
+/* =========
+   CONFIDENCE PICKER
+   ========= */
+.confidence-legend {
+  margin-bottom: 1rem;
+  background: #f7f7f7;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
 }
 
-.emoji-button {
-  font-size: 2rem;
+.confidence-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
   padding: 1rem;
-  border: 2px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.confidence-row .question-label {
+  max-width: 60%;
+  font-weight: 500;
+}
+
+.emoji-group {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.emoji-option {
+  font-size: 1.3rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  user-select: none;
 }
 
-.emoji-button:hover {
-  transform: scale(1.05);
+.emoji-option input {
+  display: none;
 }
 
-.emoji-button.selected {
-  border-color: #4a90e2;
-  background: #e8f0fe;
+.emoji-option input:checked + span,
+.emoji-option:has(input:checked) {
+  font-weight: bold;
+  border-bottom: 2px solid #444;
+}
+
+/* =========
+   FORM ELEMENTS
+   ========= */
+input[type="text"],
+textarea {
+  padding: 0.75rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+/* =========
+   ALERT / ERROR BOXES
+   ========= */
+.alert {
+  background-color: #fff3cd;
+  border-left: 5px solid #ffc107;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+/* =========
+   MISC
+   ========= */
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: #777;
 }
