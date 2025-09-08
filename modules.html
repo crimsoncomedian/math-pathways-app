@@ -3,141 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Choose a Module</title>
+  <title>Select a Module</title>
   <style>
-    :root {
-      --primary: #007bff;
-      --muted: #6c757d;
-      --bg: #f8f9fa;
-      --card-bg: #fff;
-      --border-color: #bbb;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
     body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: #f9f9f9;
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background-color: var(--bg);
       padding: 2rem;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
     }
 
     main.card {
-      background-color: var(--card-bg);
-      padding: 2rem;
+      background: white;
       border-radius: 12px;
-      max-width: 600px;
-      width: 100%;
-      box-shadow: 0 0 12px rgba(0,0,0,0.05);
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 2.5rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
     h1 {
-      margin-top: 0;
       font-size: 1.75rem;
+      margin-bottom: 0.75rem;
     }
 
-    p {
-      color: var(--muted);
+    .text-muted {
+      color: #555;
+      margin-bottom: 2rem;
       font-size: 1rem;
-      margin-bottom: 1.5rem;
     }
 
     .module-list {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1rem;
       margin-bottom: 2rem;
     }
 
-    .module-btn {
+    .module-list button {
+      font-size: 1rem;
       padding: 1rem;
-      font-size: 1rem;
-      background-color: #f1f1f1;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f2f2f2;
       cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
       text-align: left;
-      transition: background-color 0.2s ease, border-color 0.2s ease;
     }
 
-    .module-btn:hover {
-      background-color: #e9f3ff;
-      border-color: var(--primary);
+    .module-list button:hover {
+      background: #e6e6e6;
+      border-color: #aaa;
     }
 
-    .module-btn.selected {
-      background-color: #d4e8ff;
-      border-color: var(--primary);
-    }
-
-    button#start {
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-
-    button#start:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 500px) {
-      h1 {
-        font-size: 1.5rem;
-      }
-
-      .module-btn {
-        font-size: 0.95rem;
-        padding: 0.75rem;
-      }
+    .module-list button:active {
+      background: #ddd;
     }
   </style>
 </head>
 <body>
   <main class="card">
-    <h1>Choose a module</h1>
-    <p>Start with any module you’d like.</p>
-    <div id="module-list" class="module-list"></div>
-    <button id="start" disabled>Continue</button>
+    <h1>Select a module to work on</h1>
+    <p class="text-muted">You can complete the modules in any order.</p>
+
+    <div class="module-list" id="module-list"></div>
   </main>
 
   <script type="module">
-    import { MODULE_TITLES, setKV } from './js/app.js';
+    import { MODULE_TITLES, setKV, setProgress } from './js/app.js';
 
-    const moduleListEl = document.getElementById('module-list');
-    const startBtn = document.getElementById('start');
-    let selectedModule = null;
+    const moduleList = document.getElementById('module-list');
 
-    Object.entries(MODULE_TITLES).forEach(([moduleId, title]) => {
+    Object.entries(MODULE_TITLES).forEach(([key, title]) => {
       const btn = document.createElement('button');
-      btn.className = 'module-btn';
       btn.textContent = title;
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.module-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedModule = moduleId;
-        startBtn.disabled = false;
+        setKV('currentModule', key);
+        setProgress(20);
+        window.location.href = 'rank.html';
       });
-      moduleListEl.appendChild(btn);
+      moduleList.appendChild(btn);
     });
 
-    startBtn.addEventListener('click', () => {
-      if (selectedModule) {
-        setKV('currentModule', selectedModule);
-        window.location.href = 'rank.html';
-      }
-    });
+    setProgress(10);
   </script>
 </body>
 </html>
