@@ -1,192 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Confidence — All Modules</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confidence – Math Pathways</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .key {
-      background:#f7f8fc; border:1px solid #e5e7eb; padding:.75rem 1rem;
-      border-radius:10px; display:flex; gap:16px; justify-content:center; align-items:center;
-      margin-bottom:1rem; color:#374151; font-size:.95rem;
-    }
-    .conf-list{display:flex; flex-direction:column; gap:.75rem; margin-top:1rem}
-    .conf-row{
-      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
-      padding:.85rem 1rem; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-    }
-    .qtext{flex:1; font-size:15px; margin-right:.75rem}
-    .choices{display:flex; gap:12px; flex-shrink:0}
-    .emo-btn{
-      font-size:20px; background:none; border:1px solid transparent; cursor:pointer; line-height:1;
-      border-radius:10px; padding:.25rem .45rem; transition:transform .12s ease, border-color .12s ease;
-    }
-    .emo-btn[aria-pressed="true"]{ transform:scale(1.2); border-color:#c7d2fe; }
-    .actions{display:flex; justify-content:center; margin-top:20px}
-    .helper.small{font-size:.85rem}
-  </style>
-
-  <!-- MathJax for LaTeX rendering ($ ... $ inline) -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:35%"></i></div>
+  <div class="progress"><i style="width:22%"></i></div>
 
   <main class="container" role="main">
-    <h2 id="pageTitle">How confident do you feel about each problem?</h2>
-    <p class="sub" id="subText">Choose one confidence level for each question.</p>
+    <h2>How confident do you feel about each problem?</h2>
+    <p class="sub">
+      Module: <span id="moduleName">...</span>. Choose one confidence level for each question.
+    </p>
 
-    <!-- Visual key only; each row has aria-labels for SR users -->
-    <div class="key" aria-hidden="true">
+    <div class="confidence-legend">
       <strong>Confidence key:</strong>
-      <span>😟 Not confident</span>
-      <span>😐 Somewhat</span>
-      <span>🙂 Very confident</span>
+      🫤 Not confident &nbsp;&nbsp; 🙂 Somewhat &nbsp;&nbsp; 😁 Very confident
     </div>
 
-    <div id="confList" class="conf-list" aria-live="polite"></div>
+    <form id="confidenceForm" class="stack-lg"></form>
 
     <div class="actions">
-      <!-- Back button intentionally omitted to match the simplified flow -->
-      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
+      <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
     </div>
-
-    <p id="msg" class="helper small" style="display:none;color:#b91c1c">Please select a confidence level for every question.</p>
   </main>
 
   <script type="module">
-    // Load shared helpers (with fallbacks if not present)
-    let setKV = () => {}; let getKV = () => null; let setProgress = (pct)=>{ try{ document.getElementById('progressBar').style.width=pct+'%'; }catch{}}
-    try {
-      const app = await import('./js/app.js');
-      if (app.setKV) setKV = app.setKV;
-      if (app.getKV) getKV = app.getKV;
-      if (app.setProgress) setProgress = app.setProgress;
-    } catch {}
+    import { getKV, setKV, MODULE_TITLES } from './js/app.js';
 
-    // Resolve module selection
-    const params = new URLSearchParams(location.search);
-    let moduleId = params.get('module') || getKV('current_module') || 'M1';
-    setKV('current_module', moduleId);
+    const form = document.getElementById('confidenceForm');
+    const btn = document.getElementById('continueBtn');
+    const moduleNameEl = document.getElementById('moduleName');
 
-    // Pull catalog + rank order saved by rank.html
-    const questions = getKV(`${moduleId}_questions`, []) || [];
-    const order     = getKV(`${moduleId}_rank`, []) || [];
+    const moduleId = getKV('currentModule');
+    const moduleName = MODULE_TITLES[moduleId] || moduleId;
+    const ranked = getKV('rankings')?.[moduleId] || [];
 
-    // Legacy fallback (in case user lands here from old per-module pages)
-    if ((!questions.length || !order.length) && moduleId === 'M1') {
-      const legacyQ = getKV('m1_questions', []);
-      const legacyR = getKV('m1_ranking', []);
-      if (legacyQ?.length && legacyR?.length) {
-        setKV('M1_questions', legacyQ);
-        setKV('M1_rank', legacyR);
-      }
-    }
+    // Set visible module name
+    moduleNameEl.textContent = `${moduleId} — ${moduleName}`;
 
-    const savedKey = `${moduleId}_confidence`;
-    const saved = getKV(savedKey, {}); // { id: 'H'|'M'|'L' }
-
-    const confList = document.getElementById('confList');
-    const continueBtn = document.getElementById('continueBtn');
-    const msg = document.getElementById('msg');
-
-    // Page title tweak with module name if you store titles
-    try {
-      const { MODULE_TITLES } = await import('./js/modules.js');
-      const map = { M1:`M1 — ${MODULE_TITLES?.M1||'Foundational Skills'}`, M2:`M2 — ${MODULE_TITLES?.M2||'Equations & Inequalities'}`, M3:`M3 — ${MODULE_TITLES?.M3||'Functions'}`, M4:`M4 — ${MODULE_TITLES?.M4||'Polynomials'}` };
-      document.getElementById('pageTitle').textContent = `How confident do you feel about each problem?`;
-      document.getElementById('subText').textContent = `Module: ${map[moduleId] || moduleId}. Choose one confidence level for each question.`;
-    } catch {}
-
-    // Guard: if we lack data, send back to ranking for this module
-    if (!Array.isArray(order) || !order.length || !Array.isArray(questions) || !questions.length) {
-      window.location.assign('rank.html?module=' + encodeURIComponent(moduleId));
-    }
-
-    const byId = id => questions.find(q => q.id === id) || { label: id, text: id };
-
-    const EMOJIS = [
-      { key:'L', icon:'😟', label:'Not confident' },
-      { key:'M', icon:'😐', label:'Somewhat' },
-      { key:'H', icon:'🙂', label:'Very confident' }
+    const options = [
+      { emoji: '🫤', label: 'Not confident', value: 'not_confident' },
+      { emoji: '🙂', label: 'Somewhat', value: 'somewhat' },
+      { emoji: '😁', label: 'Very confident', value: 'very_confident' },
     ];
 
-    function render(){
-      confList.innerHTML = '';
-      order.forEach(id => {
-        const q = byId(id);
-        const row = document.createElement('div');
-        row.className = 'conf-row';
-        row.dataset.id = id;
+    const state = {};
 
-        const qtext = document.createElement('div');
-        qtext.className = 'qtext math';
-        qtext.innerHTML = q.label || q.text || id;
+    // Render each question row
+    for (const q of ranked) {
+      const row = document.createElement('div');
+      row.className = 'confidence-row';
 
-        const choices = document.createElement('div');
-        choices.className = 'choices';
+      const questionLabel = document.createElement('p');
+      questionLabel.textContent = q.label;
+      questionLabel.className = 'question-label';
+      row.appendChild(questionLabel);
 
-        EMOJIS.forEach(opt => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'emo-btn';
-          btn.setAttribute('role','radio');
-          btn.setAttribute('aria-label', `${opt.label} for: ${q.label || q.text || id}`);
-          btn.setAttribute('aria-pressed', saved[id] === opt.key ? 'true' : 'false');
-          btn.dataset.id = id;
-          btn.dataset.val = opt.key;
-          btn.textContent = opt.icon;
-          btn.addEventListener('click', ()=>{
-            saved[id] = opt.key;
-            setKV(savedKey, saved);
-            // update pressed state for this row
-            [...choices.querySelectorAll('.emo-btn')].forEach(b => b.setAttribute('aria-pressed','false'));
-            btn.setAttribute('aria-pressed','true');
-            validate();
-          });
-          choices.appendChild(btn);
+      const picker = document.createElement('div');
+      picker.className = 'emoji-group';
+
+      for (const opt of options) {
+        const label = document.createElement('label');
+        label.className = 'emoji-option';
+        label.title = opt.label;
+
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = q.id;
+        input.value = opt.value;
+        input.addEventListener('change', () => {
+          state[q.id] = input.value;
+          updateState();
         });
 
-        row.appendChild(qtext);
-        row.appendChild(choices);
-        confList.appendChild(row);
-      });
-
-      // Typeset math after DOM update for labels with $...$
-      if (window.MathJax?.typesetPromise) {
-        window.MathJax.typesetPromise([confList]).catch(()=>{});
-      } else if (window.MathJax?.typeset) {
-        window.MathJax.typeset();
+        label.appendChild(input);
+        label.append(` ${opt.emoji}`);
+        picker.appendChild(label);
       }
+
+      row.appendChild(picker);
+      form.appendChild(row);
     }
 
-    function validate(){
-      const allAnswered = order.every(id => saved[id] === 'H' || saved[id] === 'M' || saved[id] === 'L');
-      continueBtn.disabled = !allAnswered;
-      msg.style.display = allAnswered ? 'none' : 'block';
+    function updateState() {
+      const totalAnswered = Object.keys(state).length;
+      btn.disabled = totalAnswered !== ranked.length;
     }
 
-    continueBtn.addEventListener('click', ()=>{
-      if (continueBtn.disabled) return;
-      setKV(savedKey, saved);
-      // Advance to the shared Q1 page (we'll build this next)
-      window.location.assign('q1.html');
-      // If you still have per-module pages temporarily, you can route like:
-      // window.location.assign(`${moduleId.toLowerCase()}_q1.html`);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const confidence = {};
+      for (const q of ranked) {
+        confidence[q.id] = state[q.id];
+      }
+      setKV('confidence', confidence);
+      window.location.assign('m1_q1.html'); // Update this if needed
     });
-
-    // Progress update (adjust as desired in your overall flow)
-    try { setProgress(35); } catch {}
-
-    render();
-    validate();
   </script>
 </body>
 </html>
