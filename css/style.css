@@ -4,7 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Confidence Ranking</title>
-  <link rel="stylesheet" href="style.css" />
+  <!-- Put this in the <head> of every page -->
+<link id="app-css" rel="stylesheet" href="./css/style.css?v=4" />
+
+<script>
+  // If ./css/style.css didn't load (wrong path/case), fall back to ./style.css
+  (function () {
+    function loaded(hrefPart) {
+      return Array.from(document.styleSheets).some(s => (s.href || "").includes(hrefPart));
+    }
+    window.addEventListener('load', function () {
+      if (!loaded('/css/style.css')) {
+        const link = document.getElementById('app-css');
+        link.href = './style.css?v=4';
+        console.warn('Primary CSS not found; switched to fallback ./style.css');
+      }
+    });
+  })();
+</script>
 </head>
 <body>
   <div class="progress"><i style="width: 40%"></i></div>
