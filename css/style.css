@@ -1,234 +1,94 @@
-/* =========
-   BASE STYLES
-   ========= */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confidence Ranking</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="progress"><i style="width: 40%"></i></div>
 
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background-color: #f7f9fc;
-  color: #222;
-  line-height: 1.5;
-}
+  <main class="card">
+    <h1>How confident do you feel about each problem?</h1>
+    <p id="module-title" class="text-muted"></p>
 
-h1, h2, h3 {
-  font-weight: 700;
-  margin-bottom: 0.5em;
-}
+    <div class="emoji-key card">
+      <strong>Confidence key:</strong>
+      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
+    </div>
 
-p, label {
-  font-size: 1rem;
-  margin-bottom: 0.5em;
-}
+    <form id="confidence-form" class="vertical-gap"></form>
 
-a {
-  color: #0366d6;
-  text-decoration: none;
-}
+    <button id="continue" disabled>Continue</button>
+  </main>
 
-.container {
-  max-width: 700px;
-  margin: 2rem auto;
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
+  <script type="module">
+    import { getKV, setKV, MODULE_TITLES, setProgress } from './app.js';
 
-.stack-lg > * + * {
-  margin-top: 1.5rem;
-}
+    const currentModule = getKV('currentModule');
+    const ranked = getKV('rankings')?.[currentModule] || [];
+    const confidence = {};
+    const form = document.getElementById('confidence-form');
+    const continueBtn = document.getElementById('continue');
 
-/* =========
-   PROGRESS BAR
-   ========= */
-.progress {
-  height: 8px;
-  background-color: #e4e4e4;
-}
-.progress i {
-  display: block;
-  height: 100%;
-  width: 0%;
-  background-color: #4285f4;
-  transition: width 0.3s ease-in-out;
-}
+    // Set header info
+    if (currentModule && MODULE_TITLES[currentModule]) {
+      document.getElementById('module-title').textContent =
+        `Module: ${currentModule} — ${MODULE_TITLES[currentModule]}`;
+    }
 
-/* =========
-   BUTTONS
-   ========= */
-.btn {
-  background-color: #ccc;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  font-weight: bold;
-  font-size: 1rem;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  transition: background 0.2s ease-in-out;
-}
+    // Render confidence rows
+    ranked.forEach((qText, index) => {
+      const row = document.createElement('div');
+      row.className = 'confidence-row';
 
-.btn:hover:enabled {
-  background-color: #666;
-}
+      const qLabel = document.createElement('div');
+      qLabel.className = 'question-label';
+      qLabel.textContent = qText;
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+      const options = document.createElement('div');
+      options.className = 'emoji-options';
 
-/* =========
-   MODULE SELECT
-   ========= */
-.modules-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-top: 2rem;
-}
+      ['😟', '😐', '😄'].forEach((emoji, level) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'emoji-btn';
+        btn.textContent = emoji;
 
-.module-tile {
-  border: 2px solid #ddd;
-  border-radius: 12px;
-  padding: 1.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s;
-}
+        btn.addEventListener('click', () => {
+          // Mark selected button
+          options.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
 
-.module-tile:hover {
-  border-color: #4285f4;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-}
+          confidence[qText] = level;
+          checkAllAnswered();
+        });
 
-.module-tile.selected {
-  border-color: #4285f4;
-  background-color: #eaf1fe;
-}
+        options.appendChild(btn);
+      });
 
-.module-tile .title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-}
+      row.appendChild(qLabel);
+      row.appendChild(options);
+      form.appendChild(row);
+    });
 
-.module-tile .desc {
-  font-size: 0.95rem;
-  color: #555;
-}
+    // Enable continue when all are answered
+    function checkAllAnswered() {
+      if (Object.keys(confidence).length === ranked.length) {
+        continueBtn.disabled = false;
+      }
+    }
 
-/* =========
-   RANKING QUESTIONS
-   ========= */
-.sortable-list {
-  list-style: none;
-  margin-top: 1rem;
-  padding: 0;
-}
+    continueBtn.addEventListener('click', () => {
+      const allConfidence = getKV('confidence') || {};
+      allConfidence[currentModule] = confidence;
+      setKV('confidence', allConfidence);
+      setProgress(60);
+      window.location.href = 'q1.html';
+    });
 
-.sortable-item {
-  padding: 1rem;
-  background-color: #fff;
-  border-radius: 10px;
-  margin-bottom: 0.75rem;
-  border: 1px solid #ddd;
-  cursor: grab;
-  transition: box-shadow 0.2s ease-in-out;
-}
-
-.sortable-item:hover {
-  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
-}
-
-/* =========
-   CONFIDENCE PICKER
-   ========= */
-.confidence-legend {
-  margin-bottom: 1rem;
-  background: #f7f7f7;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-}
-
-.confidence-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 1rem;
-  border-radius: 10px;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-
-.confidence-row .question-label {
-  max-width: 60%;
-  font-weight: 500;
-}
-
-.emoji-group {
-  display: flex;
-  gap: 1.25rem;
-}
-
-.emoji-option {
-  font-size: 1.3rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.emoji-option input {
-  display: none;
-}
-
-.emoji-option input:checked + span,
-.emoji-option:has(input:checked) {
-  font-weight: bold;
-  border-bottom: 2px solid #444;
-}
-
-/* =========
-   FORM ELEMENTS
-   ========= */
-input[type="text"],
-textarea {
-  padding: 0.75rem;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  width: 100%;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
-}
-
-/* =========
-   ALERT / ERROR BOXES
-   ========= */
-.alert {
-  background-color: #fff3cd;
-  border-left: 5px solid #ffc107;
-  padding: 1rem;
-  margin-top: 1rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-}
-
-/* =========
-   MISC
-   ========= */
-.text-center {
-  text-align: center;
-}
-
-.text-muted {
-  color: #777;
-}
+    setProgress(40);
+  </script>
+</body>
+</html>
