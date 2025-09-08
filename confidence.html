@@ -55,11 +55,17 @@
 
     .confidence-row {
       margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     .question-label {
       font-weight: 600;
-      margin-bottom: 0.5rem;
+      flex: 1;
+      min-width: 200px;
     }
 
     .emoji-options {
@@ -109,6 +115,11 @@
         padding: 1.5rem 1rem;
       }
 
+      .confidence-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
       .emoji-options {
         gap: 0.75rem;
       }
@@ -137,36 +148,38 @@
     <button id="continue" disabled>Continue</button>
   </main>
 
-  <!-- Import logic for getting module info -->
+  <!-- Logic and question rendering -->
   <script type="module">
     import { getKV, setKV, setProgress } from './js/app.js';
     import { MODULE_TITLES, MODULE_QUESTIONS } from './js/modules.js';
 
-    const currentModule = getKV('currentModule') || getKV('selected_module') || 'M1';
-    const savedRankings = getKV(`${currentModule}_rank`) || [];
-    const allQuestions = MODULE_QUESTIONS?.[currentModule] || [];
+    const moduleId =
+      getKV('current_module') ||
+      getKV('selected_module') ||
+      sessionStorage.getItem('selected_module') ||
+      'M1';
 
-    const ranked = savedRankings.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
+    const title = MODULE_TITLES?.[moduleId] || moduleId;
+    const questions = MODULE_QUESTIONS?.[moduleId] || [];
+    const savedOrder = getKV(`${moduleId}_rank`) || [];
 
-    const confidence = {};
+    const ranked = savedOrder.map(id => questions.find(q => q.id === id)).filter(Boolean);
+
+    document.getElementById('module-title').textContent = `Module: ${title}`;
     const form = document.getElementById('confidence-form');
     const continueBtn = document.getElementById('continue');
+    const confidence = {};
 
-    // Set header
-    document.getElementById('module-title').textContent =
-      `Module: ${currentModule} — ${MODULE_TITLES?.[currentModule] || ''}`;
-
-    // Render confidence rows
     ranked.forEach((q, index) => {
       const row = document.createElement('div');
       row.className = 'confidence-row';
 
-      const qLabel = document.createElement('div');
-      qLabel.className = 'question-label';
-      qLabel.textContent = q?.label || `Question ${index + 1}`;
+      const label = document.createElement('div');
+      label.className = 'question-label';
+      label.textContent = q.label || `Question ${index + 1}`;
 
-      const options = document.createElement('div');
-      options.className = 'emoji-options';
+      const emojiContainer = document.createElement('div');
+      emojiContainer.className = 'emoji-options';
 
       ['😟', '😐', '😄'].forEach((emoji, level) => {
         const btn = document.createElement('button');
@@ -176,29 +189,28 @@
 
         btn.addEventListener('click', () => {
           // Deselect others
-          options.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          emojiContainer.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
+
+          // Record confidence
           confidence[q.id] = level;
-          checkAllAnswered();
+
+          // Enable button only when all answered
+          const allAnswered = ranked.every(q => confidence[q.id] !== undefined);
+          continueBtn.disabled = !allAnswered;
         });
 
-        options.appendChild(btn);
+        emojiContainer.appendChild(btn);
       });
 
-      row.appendChild(qLabel);
-      row.appendChild(options);
+      row.appendChild(label);
+      row.appendChild(emojiContainer);
       form.appendChild(row);
     });
 
-    function checkAllAnswered() {
-      if (Object.keys(confidence).length === ranked.length) {
-        continueBtn.disabled = false;
-      }
-    }
-
     continueBtn.addEventListener('click', () => {
       const allConfidence = getKV('confidence') || {};
-      allConfidence[currentModule] = confidence;
+      allConfidence[moduleId] = confidence;
       setKV('confidence', allConfidence);
       setProgress(60);
       window.location.href = 'q1.html';
