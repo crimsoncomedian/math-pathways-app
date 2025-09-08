@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Rate Your Confidence</title>
+  <title>Rate Confidence</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
@@ -16,7 +16,7 @@
     .progress {
       background: #eee;
       height: 6px;
-      margin: 0 0 1.5rem 0;
+      margin-bottom: 1.5rem;
     }
 
     .progress i {
@@ -46,46 +46,38 @@
       margin-bottom: 1.5rem;
     }
 
-    .qbox {
-      background: #fdfdfd;
-      padding: 1rem 1.25rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
+    .question-block {
       margin-bottom: 1.5rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,.03);
     }
 
-    .qlabel {
-      margin-bottom: 0.75rem;
+    .question-text {
       font-weight: 500;
+      margin-bottom: 0.75rem;
     }
 
-    .emoji-row {
+    .emoji-options {
       display: flex;
-      gap: 0.5rem;
-      justify-content: space-between;
+      gap: 1rem;
       font-size: 1.5rem;
-      margin-top: 0.5rem;
     }
 
-    .emoji {
+    .emoji-options label {
       cursor: pointer;
-      padding: 0.3rem 0.6rem;
-      border-radius: 8px;
-      transition: background 0.2s ease;
-      user-select: none;
+      transition: transform 0.1s;
     }
 
-    .emoji.selected {
-      background: #4f46e5;
-      color: white;
-      transform: scale(1.1);
+    .emoji-options label:hover {
+      transform: scale(1.3);
+    }
+
+    input[type="radio"] {
+      display: none;
     }
 
     .actions {
       display: flex;
       justify-content: center;
-      margin-top: 1.5rem;
+      margin-top: 2rem;
     }
 
     .btn {
@@ -118,107 +110,85 @@
       }
     }
   </style>
-
-  <!-- MathJax for LaTeX rendering -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
+
 <body>
-  <div class="progress"><i id="progressBar" style="width:60%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:40%"></i></div>
 
   <main class="container" role="main">
     <h2>Rate Your Confidence</h2>
     <p class="sub">How confident are you about answering each question?</p>
 
-    <div id="questionContainer"></div>
+    <div id="questionsContainer"></div>
 
     <div class="actions">
       <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
     </div>
   </main>
 
-  <script type="module">
-    let getKV = () => null;
-    let setKV = () => {};
+  <script>
+    const questionsContainer = document.getElementById('questionsContainer');
+    const continueBtn = document.getElementById('continueBtn');
 
-    try {
-      const app = await import('./js/app.js');
-      if (app.getKV) getKV = app.getKV;
-      if (app.setKV) setKV = app.setKV;
-    } catch (e) {
-      console.warn('[confidence] app.js not loaded:', e);
+    // Emojis for rating
+    const emojis = ['😟', '😐', '🙂', '😄'];
+
+    // Load questions from localStorage (ranked list)
+    const rankedQuestions = JSON.parse(localStorage.getItem('rankedQuestions')) || [];
+
+    // Track responses
+    const responses = {};
+
+    function renderQuestions() {
+      rankedQuestions.forEach((question, index) => {
+        const qBlock = document.createElement('div');
+        qBlock.className = 'question-block';
+
+        const qText = document.createElement('div');
+        qText.className = 'question-text';
+        qText.textContent = question;
+        qBlock.appendChild(qText);
+
+        const emojiDiv = document.createElement('div');
+        emojiDiv.className = 'emoji-options';
+
+        emojis.forEach((emoji, i) => {
+          const inputId = `q${index}_opt${i}`;
+          const label = document.createElement('label');
+          label.htmlFor = inputId;
+          label.textContent = emoji;
+
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = `q${index}`;
+          input.id = inputId;
+          input.value = emoji;
+
+          input.addEventListener('change', () => {
+            responses[question] = emoji;
+            checkCompletion();
+          });
+
+          emojiDiv.appendChild(input);
+          emojiDiv.appendChild(label);
+        });
+
+        qBlock.appendChild(emojiDiv);
+        questionsContainer.appendChild(qBlock);
+      });
     }
 
-    const moduleId =
-      sessionStorage.getItem('selected_module') ||
-      getKV('current_module') ||
-      'M1';
-
-    const questions = getKV(`${moduleId}_questions`, []);
-    const ranking = getKV(`${moduleId}_ranking`, []);
-    const saved = getKV(`${moduleId}_confidence`, {});
-
-    const container = document.getElementById('questionContainer');
-    const btn = document.getElementById('continueBtn');
-
-    const emojis = ['😟', '😐', '🙂', '😄', '😎'];
-    const confidence = {};
-
-    // map ID to question
-    const qMap = {};
-    questions.forEach(q => qMap[q.id] = q.label);
-
-    ranking.forEach(qid => {
-      const label = qMap[qid] || '[Missing Question]';
-      const val = saved[qid] || null;
-
-      const box = document.createElement('div');
-      box.className = 'qbox';
-      box.innerHTML = `
-        <div class="qlabel math">${label}</div>
-        <div class="emoji-row" data-qid="${qid}">
-          ${emojis.map((e, i) => `<span class="emoji" data-val="${i + 1}">${e}</span>`).join('')}
-        </div>
-      `;
-
-      container.appendChild(box);
-
-      // preselect saved value
-      if (val) {
-        box.querySelector(`.emoji[data-val="${val}"]`)?.classList.add('selected');
-        confidence[qid] = val;
-      }
-    });
-
-    if (window.MathJax?.typesetPromise) {
-      MathJax.typesetPromise([container]);
+    function checkCompletion() {
+      const allAnswered = rankedQuestions.every(q => responses[q]);
+      continueBtn.disabled = !allAnswered;
     }
 
-    container.addEventListener('click', (e) => {
-      if (!e.target.classList.contains('emoji')) return;
-
-      const row = e.target.closest('.emoji-row');
-      const qid = row.dataset.qid;
-      const val = Number(e.target.dataset.val);
-
-      [...row.querySelectorAll('.emoji')].forEach(el => el.classList.remove('selected'));
-      e.target.classList.add('selected');
-
-      confidence[qid] = val;
-
-      const allRated = ranking.every(qid => confidence[qid] > 0);
-      btn.disabled = !allRated;
+    continueBtn.addEventListener('click', () => {
+      localStorage.setItem('confidenceRatings', JSON.stringify(responses));
+      window.location.href = 'modules.html'; // Or the next page
     });
 
-    btn.addEventListener('click', () => {
-      setKV(`${moduleId}_confidence`, confidence);
-      window.location.assign('practice.html');
-    });
+    renderQuestions();
   </script>
 </body>
 </html>
