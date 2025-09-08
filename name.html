@@ -5,25 +5,92 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Math Pathways – Your Name</title>
 
-  <!-- Load styles -->
-  <link rel="stylesheet" href="style.css" />
-  <script>
-    // Fallback in case stylesheet path fails
-    (function () {
-      function loaded(hrefPart) {
-        return Array.from(document.styleSheets).some(s => (s.href || "").includes(hrefPart));
-      }
-      window.addEventListener('load', function () {
-        if (!loaded('/css/style.css')) {
-          const link = document.getElementById('app-css');
-          link.href = './style.css?v=4';
-          console.warn('Primary CSS not found; switched to fallback ./style.css');
-        }
-      });
-    })();
-  </script>
-</head>
+  <!-- Inline CSS for this page -->
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #222;
+    }
 
+    .progress {
+      height: 6px;
+      background: #eee;
+    }
+
+    .progress i {
+      display: block;
+      height: 6px;
+      background: #0080ff;
+      transition: width 0.3s ease;
+    }
+
+    main.container {
+      max-width: 600px;
+      margin: 60px auto;
+      background: #fff;
+      padding: 2rem;
+      box-shadow: 0 0 12px rgba(0,0,0,0.05);
+      border-radius: 8px;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sub {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .helper {
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+      color: #555;
+    }
+
+    input.input {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .actions {
+      margin-top: 1.5rem;
+    }
+
+    button.btn {
+      background: #0080ff;
+      color: white;
+      font-size: 1rem;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button.btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 600px) {
+      .row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
 <body>
   <!-- visual-only progress -->
   <div class="progress"><i style="width:10%"></i></div>
@@ -49,21 +116,21 @@
     </form>
   </main>
 
-  <!-- Import helper logic -->
   <script type="module">
-    // Default fallback if module import fails
+    // Make helpers optional so the page still works if js/app.js is missing.
     let setKV = () => {};
     let setProgress = () => {};
 
+    // Try to import optional helpers
     try {
-      const mod = await import('./js/app.js');  // ← FIXED path!
+      const mod = await import('./app.js');
       if (mod?.setKV) setKV = mod.setKV;
       if (mod?.setProgress) setProgress = mod.setProgress;
     } catch (e) {
       console.warn('Optional js/app.js not found or no exports; continuing without it.', e);
     }
 
-    // Progress bar
+    // Progress bar (no-op if helper isn't present)
     try { setProgress(10); } catch {}
 
     // Form wiring
@@ -75,9 +142,12 @@
       btn.disabled = !(first.value.trim() && last.value.trim());
     }
 
+    // Attach listeners
     first.addEventListener('input', validate);
     last.addEventListener('input', validate);
-    validate();  // Initial validation
+
+    // Important: run once so autofill enables the button immediately
+    validate();
 
     document.getElementById('nameForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -85,8 +155,8 @@
         setKV('student', { first: first.value.trim(), last: last.value.trim(), ts: Date.now() });
       } catch {}
 
-      // Navigate to reflection.html
-      window.location.href = 'reflection.html';
+      // Make sure this file exists in your repo; otherwise change the target.
+      window.location.href = 'tiles.html';
     });
   </script>
 </body>
