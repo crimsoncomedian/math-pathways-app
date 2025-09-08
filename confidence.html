@@ -2,20 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Confidence Rating</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confidence Ranking</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      font-family: system-ui, sans-serif;
       background: #f9f9f9;
       margin: 0;
-      padding: 2rem;
+      padding: 1rem;
     }
 
     .progress {
-      background: #eee;
       height: 6px;
+      background: #eee;
       margin-bottom: 1.5rem;
     }
 
@@ -23,10 +22,10 @@
       display: block;
       background: #4f46e5;
       height: 100%;
-      transition: width 0.3s;
+      width: 40%;
     }
 
-    main.container {
+    main.card {
       background: white;
       max-width: 720px;
       margin: 0 auto;
@@ -35,176 +34,189 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
-    h2 {
+    h1 {
       font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .text-muted {
+      font-size: 1rem;
+      color: #555;
+      margin-bottom: 1rem;
+    }
+
+    .emoji-key {
+      background: #f4f4f4;
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+
+    .confidence-row {
       margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
-    .question-block {
-      margin-bottom: 2rem;
-    }
-
-    .question-text {
-      font-size: 1.1rem;
-      margin-bottom: 0.75rem;
+    .question-label {
+      font-weight: 600;
+      flex: 1;
+      min-width: 200px;
     }
 
     .emoji-options {
       display: flex;
-      justify-content: flex-start;
       gap: 1rem;
+    }
+
+    .emoji-btn {
       font-size: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .emoji {
+      background: #eee;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
       cursor: pointer;
-      padding: 0.3rem 0.6rem;
-      border-radius: 8px;
-      transition: background 0.2s;
-      border: 2px solid transparent;
+      transition: transform 0.2s;
     }
 
-    .emoji.selected {
-      background: #e0e7ff;
-      border-color: #4f46e5;
+    .emoji-btn:hover {
+      transform: scale(1.1);
     }
 
-    .actions {
-      display: flex;
-      justify-content: center;
-      margin-top: 2rem;
+    .emoji-btn.selected {
+      background: #4f46e5;
+      color: white;
     }
 
-    .btn {
+    button#continue {
+      margin-top: 1rem;
       padding: 0.75rem 1.5rem;
-      background: #aaa;
+      background: #4f46e5;
       color: white;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
-      cursor: not-allowed;
-      opacity: 0.6;
+      cursor: pointer;
       transition: background 0.2s ease;
     }
 
-    .btn.ready {
-      background: #4f46e5;
-      cursor: pointer;
-      opacity: 1;
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
     }
 
     @media (max-width: 480px) {
-      body {
-        padding: 1rem;
-      }
-
-      main.container {
+      main.card {
         padding: 1.5rem 1rem;
       }
 
-      .emoji-options {
-        justify-content: center;
+      .confidence-row {
+        flex-direction: column;
+        align-items: flex-start;
       }
 
-      .btn {
-        width: 100%;
+      .emoji-options {
+        gap: 0.75rem;
+      }
+
+      .emoji-btn {
+        width: 40px;
+        height: 40px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="progress"><i style="width: 15%"></i></div>
+  <div class="progress"><i></i></div>
 
-  <main class="container">
-    <h2>How confident are you about each question?</h2>
+  <main class="card">
+    <h1>How confident do you feel about each problem?</h1>
+    <p id="module-title" class="text-muted"></p>
 
-    <div id="questionContainer"></div>
-
-    <div class="actions">
-      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
+    <div class="emoji-key card">
+      <strong>Confidence key:</strong>
+      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
     </div>
+
+    <form id="confidence-form" class="vertical-gap"></form>
+
+    <button id="continue" disabled>Continue</button>
   </main>
 
+  <!-- Logic and question rendering -->
   <script type="module">
-    // Assume these are imported in your main build
-    // import { order } from './modules.js';
+    import { getKV, setKV, setProgress } from './js/app.js';
+    import { MODULE_TITLES, MODULE_QUESTIONS } from './js/modules.js';
 
-    const order = JSON.parse(localStorage.getItem("order") || "[]");
-    const container = document.getElementById("questionContainer");
-    const continueBtn = document.getElementById("continueBtn");
+    const moduleId =
+      getKV('current_module') ||
+      getKV('selected_module') ||
+      sessionStorage.getItem('selected_module') ||
+      'M1';
 
-    const state = {}; // Tracks selected confidence per question
+    const title = MODULE_TITLES?.[moduleId] || moduleId;
+    const questions = MODULE_QUESTIONS?.[moduleId] || [];
+    const savedOrder = getKV(`${moduleId}_rank`) || [];
 
-    const emojis = [
-      { icon: "😩", value: 1, label: "Not confident" },
-      { icon: "😐", value: 2, label: "Somewhat confident" },
-      { icon: "😊", value: 3, label: "Confident" },
-      { icon: "😎", value: 4, label: "Very confident" },
-    ];
+    const ranked = savedOrder.map(id => questions.find(q => q.id === id)).filter(Boolean);
 
-    function render() {
-      container.innerHTML = "";
-      order.forEach((question, index) => {
-        const block = document.createElement("div");
-        block.className = "question-block";
+    document.getElementById('module-title').textContent = `Module: ${title}`;
+    const form = document.getElementById('confidence-form');
+    const continueBtn = document.getElementById('continue');
+    const confidence = {};
 
-        const text = document.createElement("div");
-        text.className = "question-text";
-        text.textContent = question;
+    ranked.forEach((q, index) => {
+      const row = document.createElement('div');
+      row.className = 'confidence-row';
 
-        const emojiRow = document.createElement("div");
-        emojiRow.className = "emoji-options";
+      const label = document.createElement('div');
+      label.className = 'question-label';
+      label.textContent = q.label || `Question ${index + 1}`;
 
-        emojis.forEach((emoji) => {
-          const el = document.createElement("div");
-          el.className = "emoji";
-          el.innerText = emoji.icon;
-          el.title = emoji.label;
+      const emojiContainer = document.createElement('div');
+      emojiContainer.className = 'emoji-options';
 
-          if (state[index] === emoji.value) {
-            el.classList.add("selected");
-          }
+      ['😟', '😐', '😄'].forEach((emoji, level) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'emoji-btn';
+        btn.textContent = emoji;
 
-          el.addEventListener("click", () => {
-            state[index] = emoji.value;
+        btn.addEventListener('click', () => {
+          // Deselect others
+          emojiContainer.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
 
-            // Deselect others
-            Array.from(emojiRow.children).forEach(child =>
-              child.classList.remove("selected")
-            );
-            el.classList.add("selected");
+          // Record confidence
+          confidence[q.id] = level;
 
-            checkAllRated();
-          });
-
-          emojiRow.appendChild(el);
+          // Enable button only when all answered
+          const allAnswered = ranked.every(q => confidence[q.id] !== undefined);
+          continueBtn.disabled = !allAnswered;
         });
 
-        block.appendChild(text);
-        block.appendChild(emojiRow);
-        container.appendChild(block);
+        emojiContainer.appendChild(btn);
       });
-    }
 
-    function checkAllRated() {
-      const allRated = Object.keys(state).length === order.length;
-      continueBtn.disabled = !allRated;
-      if (allRated) {
-        continueBtn.classList.add("ready");
-      } else {
-        continueBtn.classList.remove("ready");
-      }
-    }
-
-    continueBtn.addEventListener("click", () => {
-      if (Object.keys(state).length === order.length) {
-        localStorage.setItem("confidence", JSON.stringify(state));
-        window.location.href = "next-page.html"; // Update to your next page
-      }
+      row.appendChild(label);
+      row.appendChild(emojiContainer);
+      form.appendChild(row);
     });
 
-    render();
+    continueBtn.addEventListener('click', () => {
+      const allConfidence = getKV('confidence') || {};
+      allConfidence[moduleId] = confidence;
+      setKV('confidence', allConfidence);
+      setProgress(60);
+      window.location.href = 'q1.html';
+    });
+
+    setProgress(40);
   </script>
 </body>
 </html>
