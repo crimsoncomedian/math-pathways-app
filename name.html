@@ -5,10 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Math Pathways – Your Name</title>
 
-  <!-- Keep this path if your stylesheet is in /css/style.css. 
-       If your file is at the repo root as style.css, change to href="style.css". -->
-  <link rel="stylesheet" href="css/style.css" />
+  <!-- Load styles -->
+  <link id="app-css" rel="stylesheet" href="./css/style.css?v=4" />
+  <script>
+    // Fallback in case stylesheet path fails
+    (function () {
+      function loaded(hrefPart) {
+        return Array.from(document.styleSheets).some(s => (s.href || "").includes(hrefPart));
+      }
+      window.addEventListener('load', function () {
+        if (!loaded('/css/style.css')) {
+          const link = document.getElementById('app-css');
+          link.href = './style.css?v=4';
+          console.warn('Primary CSS not found; switched to fallback ./style.css');
+        }
+      });
+    })();
+  </script>
 </head>
+
 <body>
   <!-- visual-only progress -->
   <div class="progress"><i style="width:10%"></i></div>
@@ -34,21 +49,21 @@
     </form>
   </main>
 
+  <!-- Import helper logic -->
   <script type="module">
-    // Make helpers optional so the page still works if js/app.js is missing.
+    // Default fallback if module import fails
     let setKV = () => {};
     let setProgress = () => {};
 
-    // Try to import optional helpers
     try {
-      const mod = await import('./js/app.js');
+      const mod = await import('./js/app.js');  // ← FIXED path!
       if (mod?.setKV) setKV = mod.setKV;
       if (mod?.setProgress) setProgress = mod.setProgress;
     } catch (e) {
       console.warn('Optional js/app.js not found or no exports; continuing without it.', e);
     }
 
-    // Progress bar (no-op if helper isn't present)
+    // Progress bar
     try { setProgress(10); } catch {}
 
     // Form wiring
@@ -60,12 +75,9 @@
       btn.disabled = !(first.value.trim() && last.value.trim());
     }
 
-    // Attach listeners
     first.addEventListener('input', validate);
     last.addEventListener('input', validate);
-
-    // Important: run once so autofill enables the button immediately
-    validate();
+    validate();  // Initial validation
 
     document.getElementById('nameForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -73,7 +85,7 @@
         setKV('student', { first: first.value.trim(), last: last.value.trim(), ts: Date.now() });
       } catch {}
 
-      // Make sure this file exists in your repo; otherwise change the target.
+      // Navigate to reflection.html
       window.location.href = 'reflection.html';
     });
   </script>
