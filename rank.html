@@ -7,18 +7,19 @@
   <link href="css/style.css" rel="stylesheet" />
 
   <style>
-    /* Minimal styles that play nice with your existing CSS */
+    /* Light, page-local styles that play nice with your main CSS */
     .rank-list { list-style: none; padding: 0; margin: 1rem 0; }
     .rank-item {
       display: flex; align-items: center; gap: .75rem;
       padding: .75rem 1rem; margin: .5rem 0;
-      border: 1px solid #ddd; border-radius: 12px; background: #fff;
+      border: 1px solid #e5e7eb; border-radius: 12px; background: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,.04);
     }
     .badge  { min-width: 2ch; text-align: right; font-weight: 700; opacity: .7; }
     .handle { margin-left: auto; cursor: grab; }
     .dragging { opacity: .6; }
-    .hint   { font-size: .95rem; opacity: .8; margin: .25rem 0; }
-    .actions { display: flex; justify-content: center; margin-top: 1rem; }
+    .hint   { font-size: .95rem; opacity: .8; margin:.25rem 0; }
+    .actions { display:flex; justify-content:center; margin-top:1rem; }
   </style>
 
   <!-- MathJax for LaTeX rendering ($ ... $ inline) -->
@@ -31,7 +32,7 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:25%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:30%"></i></div>
 
   <main class="container" role="main">
     <h2 id="moduleTitle">Rank the Questions</h2>
@@ -46,7 +47,7 @@
   </main>
 
   <script type="module">
-    // Load helpers if available
+    // --- Load helpers (safe fallbacks if app.js isn't present) ---
     let setKV = () => {};
     let getKV = () => null;
     let setProgress = (pct) => { try { document.getElementById('progressBar').style.width = pct + '%'; } catch {} };
@@ -58,15 +59,21 @@
       if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
     } catch { /* optional */ }
 
-    // Titles + question catalog
+    // --- Import question catalog ---
     const { MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/modules.js');
 
-    // Resolve module: querystring takes precedence; fallback to stored value; default M1
+    // --- Resolve selected module (query > storage fallbacks) ---
     const params = new URLSearchParams(location.search);
-    let moduleId = params.get('module') || getKV('current_module') || 'M1';
+    let moduleId =
+      params.get('module') ||
+      getKV('current_module') ||
+      getKV('selected_module') ||
+      (sessionStorage.getItem('selected_module') || 'M1');
+
+    // Normalize and persist
     setKV('current_module', moduleId);
 
-    // Page chrome
+    // --- Page title / progress ---
     const titleMap = {
       M1: `M1 — ${MODULE_TITLES?.M1 || 'Foundational Skills'}`,
       M2: `M2 — ${MODULE_TITLES?.M2 || 'Equations & Inequalities'}`,
@@ -74,27 +81,46 @@
       M4: `M4 — ${MODULE_TITLES?.M4 || 'Polynomials'}`
     };
     document.getElementById('moduleTitle').textContent = `Rank: ${titleMap[moduleId] || moduleId}`;
-    // Progress (adjust if you have a specific scale)
     try { setProgress(30); } catch {}
 
-    // Build list from catalog
+    // --- Pull the 5 questions for this module ---
     const listEl = document.getElementById('rankList');
     const btn    = document.getElementById('continueBtn');
-    const questions = (MODULE_QUESTIONS && MODULE_QUESTIONS[moduleId]) ? MODULE_QUESTIONS[moduleId] : [];
+    const questions = Array.isArray(MODULE_QUESTIONS[moduleId]) ? MODULE_QUESTIONS[moduleId] : [];
 
-    // Restore saved order if present
-    const savedKey = `${moduleId}_rank`;
+    if (questions.length !== 5) {
+      // If catalog is missing, send back to tiles
+      window.location.assign('modules.html');
+    }
+
+    // --- Restore saved order if present; otherwise shuffle once and save ---
+    const savedKey   = `${moduleId}_rank`;
     const savedOrder = getKV(savedKey, null);
-    const order = (savedOrder && Array.isArray(savedOrder) && savedOrder.length === questions.length)
-      ? savedOrder
-      : questions.map(q => q.id);
 
-    const byId = id => questions.find(q => q.id === id);
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
 
+    let order;
+    if (savedOrder && Array.isArray(savedOrder) && savedOrder.length === questions.length) {
+      order = savedOrder.slice();
+    } else {
+      order = shuffle(questions.map(q => q.id));
+      setKV(savedKey, order); // persist immediately so refresh keeps the same order
+    }
+
+    // Keep catalog handy for later steps (confidence / Q1 / Q2)
+    setKV(`${moduleId}_questions`, questions);
+
+    // --- Render list ---
     function render() {
       listEl.innerHTML = '';
       order.forEach((id, idx) => {
-        const q = byId(id);
+        const q = questions.find(x => x.id === id);
         const li = document.createElement('li');
         li.className  = 'rank-item';
         li.draggable  = true;
@@ -108,7 +134,7 @@
       });
       btn.disabled = questions.length === 0;
 
-      // Typeset math after DOM update (supports labels with $...$)
+      // MathJax re-typeset labels
       if (window.MathJax?.typesetPromise) {
         window.MathJax.typesetPromise([listEl]).catch(()=>{});
       } else if (window.MathJax?.typeset) {
@@ -117,7 +143,7 @@
     }
     render();
 
-    // Drag & drop behavior (mouse/touch)
+    // --- Drag & drop (mouse) ---
     let dragging = null;
 
     listEl.addEventListener('dragstart', (e) => {
@@ -126,8 +152,7 @@
       dragging = li;
       li.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
-      // Required in some browsers
-      e.dataTransfer.setData('text/plain', li.dataset.id);
+      e.dataTransfer.setData('text/plain', li.dataset.id); // required for Firefox
     });
 
     listEl.addEventListener('dragend', () => {
@@ -159,20 +184,14 @@
       }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    // Save & continue
+    // --- Save & continue ---
     btn.addEventListener('click', () => {
       const ids = [...listEl.querySelectorAll('li.rank-item')].map(li => li.dataset.id);
-
-      // Persist per-module rank and the question catalog (useful later for confidence/Q1/Q2)
       setKV(savedKey, ids);
+      // also ensure catalog is persisted (for the Confidence page)
       setKV(`${moduleId}_questions`, questions);
-
-      // Hand-off to your next step:
-      // If you’re moving to a SHARED confidence page:
+      // proceed
       window.location.assign('confidence.html');
-
-      // If you still have per-module confidence pages for now, swap the line above for:
-      // window.location.assign(`${moduleId.toLowerCase()}_confidence.html`);
     });
   </script>
 </body>
