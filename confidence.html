@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Rate Confidence</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confidence Ranking</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      font-family: system-ui, sans-serif;
       background: #f9f9f9;
       margin: 0;
-      padding: 2rem;
+      padding: 1rem;
     }
 
     .progress {
-      background: #eee;
       height: 6px;
+      background: #eee;
       margin-bottom: 1.5rem;
     }
 
@@ -23,10 +22,10 @@
       display: block;
       background: #4f46e5;
       height: 100%;
-      transition: width 0.3s;
+      width: 40%;
     }
 
-    main.container {
+    main.card {
       background: white;
       max-width: 720px;
       margin: 0 auto;
@@ -35,52 +34,61 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
-    h2 {
+    h1 {
       font-size: 1.75rem;
-      margin-bottom: 0.5rem;
+      margin-bottom: 1rem;
     }
 
-    .sub {
+    .text-muted {
       font-size: 1rem;
-      color: #444;
+      color: #555;
+      margin-bottom: 1rem;
+    }
+
+    .emoji-key {
+      background: #f4f4f4;
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+
+    .confidence-row {
       margin-bottom: 1.5rem;
     }
 
-    .question-block {
-      margin-bottom: 1.5rem;
-    }
-
-    .question-text {
-      font-weight: 500;
-      margin-bottom: 0.75rem;
+    .question-label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
     }
 
     .emoji-options {
       display: flex;
       gap: 1rem;
+    }
+
+    .emoji-btn {
       font-size: 1.5rem;
-    }
-
-    .emoji-options label {
+      background: #eee;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
       cursor: pointer;
-      transition: transform 0.1s;
+      transition: transform 0.2s;
     }
 
-    .emoji-options label:hover {
-      transform: scale(1.3);
+    .emoji-btn:hover {
+      transform: scale(1.1);
     }
 
-    input[type="radio"] {
-      display: none;
+    .emoji-btn.selected {
+      background: #4f46e5;
+      color: white;
     }
 
-    .actions {
-      display: flex;
-      justify-content: center;
-      margin-top: 2rem;
-    }
-
-    .btn {
+    button#continue {
+      margin-top: 1rem;
       padding: 0.75rem 1.5rem;
       background: #4f46e5;
       color: white;
@@ -91,104 +99,112 @@
       transition: background 0.2s ease;
     }
 
-    .btn:disabled {
-      background: #aaa;
+    button:disabled {
+      background: #ccc;
       cursor: not-allowed;
     }
 
     @media (max-width: 480px) {
-      body {
-        padding: 1rem;
-      }
-
-      main.container {
+      main.card {
         padding: 1.5rem 1rem;
       }
 
-      .btn {
-        width: 100%;
+      .emoji-options {
+        gap: 0.75rem;
+      }
+
+      .emoji-btn {
+        width: 40px;
+        height: 40px;
       }
     }
   </style>
 </head>
-
 <body>
-  <div class="progress"><i id="progressBar" style="width:40%"></i></div>
+  <div class="progress"><i></i></div>
 
-  <main class="container" role="main">
-    <h2>Rate Your Confidence</h2>
-    <p class="sub">How confident are you about answering each question?</p>
+  <main class="card">
+    <h1>How confident do you feel about each problem?</h1>
+    <p id="module-title" class="text-muted"></p>
 
-    <div id="questionsContainer"></div>
-
-    <div class="actions">
-      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
+    <div class="emoji-key card">
+      <strong>Confidence key:</strong>
+      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
     </div>
+
+    <form id="confidence-form" class="vertical-gap"></form>
+
+    <button id="continue" disabled>Continue</button>
   </main>
 
-  <script>
-    const questionsContainer = document.getElementById('questionsContainer');
-    const continueBtn = document.getElementById('continueBtn');
+  <!-- Import logic for getting module info -->
+  <script type="module">
+    import { getKV, setKV, setProgress } from './js/app.js';
+    import { MODULE_TITLES, MODULE_QUESTIONS } from './js/modules.js';
 
-    // Emojis for rating
-    const emojis = ['😟', '😐', '🙂', '😄'];
+    const currentModule = getKV('currentModule') || getKV('selected_module') || 'M1';
+    const savedRankings = getKV(`${currentModule}_rank`) || [];
+    const allQuestions = MODULE_QUESTIONS?.[currentModule] || [];
 
-    // Load questions from localStorage (ranked list)
-    const rankedQuestions = JSON.parse(localStorage.getItem('rankedQuestions')) || [];
+    const ranked = savedRankings.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
 
-    // Track responses
-    const responses = {};
+    const confidence = {};
+    const form = document.getElementById('confidence-form');
+    const continueBtn = document.getElementById('continue');
 
-    function renderQuestions() {
-      rankedQuestions.forEach((question, index) => {
-        const qBlock = document.createElement('div');
-        qBlock.className = 'question-block';
+    // Set header
+    document.getElementById('module-title').textContent =
+      `Module: ${currentModule} — ${MODULE_TITLES?.[currentModule] || ''}`;
 
-        const qText = document.createElement('div');
-        qText.className = 'question-text';
-        qText.textContent = question;
-        qBlock.appendChild(qText);
+    // Render confidence rows
+    ranked.forEach((q, index) => {
+      const row = document.createElement('div');
+      row.className = 'confidence-row';
 
-        const emojiDiv = document.createElement('div');
-        emojiDiv.className = 'emoji-options';
+      const qLabel = document.createElement('div');
+      qLabel.className = 'question-label';
+      qLabel.textContent = q?.label || `Question ${index + 1}`;
 
-        emojis.forEach((emoji, i) => {
-          const inputId = `q${index}_opt${i}`;
-          const label = document.createElement('label');
-          label.htmlFor = inputId;
-          label.textContent = emoji;
+      const options = document.createElement('div');
+      options.className = 'emoji-options';
 
-          const input = document.createElement('input');
-          input.type = 'radio';
-          input.name = `q${index}`;
-          input.id = inputId;
-          input.value = emoji;
+      ['😟', '😐', '😄'].forEach((emoji, level) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'emoji-btn';
+        btn.textContent = emoji;
 
-          input.addEventListener('change', () => {
-            responses[question] = emoji;
-            checkCompletion();
-          });
-
-          emojiDiv.appendChild(input);
-          emojiDiv.appendChild(label);
+        btn.addEventListener('click', () => {
+          // Deselect others
+          options.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          confidence[q.id] = level;
+          checkAllAnswered();
         });
 
-        qBlock.appendChild(emojiDiv);
-        questionsContainer.appendChild(qBlock);
+        options.appendChild(btn);
       });
-    }
 
-    function checkCompletion() {
-      const allAnswered = rankedQuestions.every(q => responses[q]);
-      continueBtn.disabled = !allAnswered;
+      row.appendChild(qLabel);
+      row.appendChild(options);
+      form.appendChild(row);
+    });
+
+    function checkAllAnswered() {
+      if (Object.keys(confidence).length === ranked.length) {
+        continueBtn.disabled = false;
+      }
     }
 
     continueBtn.addEventListener('click', () => {
-      localStorage.setItem('confidenceRatings', JSON.stringify(responses));
-      window.location.href = 'modules.html'; // Or the next page
+      const allConfidence = getKV('confidence') || {};
+      allConfidence[currentModule] = confidence;
+      setKV('confidence', allConfidence);
+      setProgress(60);
+      window.location.href = 'q1.html';
     });
 
-    renderQuestions();
+    setProgress(40);
   </script>
 </body>
 </html>
