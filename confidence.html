@@ -3,102 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Confidence – Math Pathways</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Confidence Ranking</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="progress"><i style="width:22%"></i></div>
+  <div class="progress"><i style="width: 40%"></i></div>
 
-  <main class="container" role="main">
-    <h2>How confident do you feel about each problem?</h2>
-    <p class="sub">
-      Module: <span id="moduleName">...</span>. Choose one confidence level for each question.
-    </p>
+  <main class="card">
+    <h1>How confident do you feel about each problem?</h1>
+    <p id="module-title" class="text-muted"></p>
 
-    <div class="confidence-legend">
+    <div class="emoji-key card">
       <strong>Confidence key:</strong>
-      🫤 Not confident &nbsp;&nbsp; 🙂 Somewhat &nbsp;&nbsp; 😁 Very confident
+      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
     </div>
 
-    <form id="confidenceForm" class="stack-lg"></form>
+    <form id="confidence-form" class="vertical-gap"></form>
 
-    <div class="actions">
-      <button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
-    </div>
+    <button id="continue" disabled>Continue</button>
   </main>
 
   <script type="module">
-    import { getKV, setKV, MODULE_TITLES } from './js/app.js';
+    import { getKV, setKV, MODULE_TITLES, setProgress } from './app.js';
 
-    const form = document.getElementById('confidenceForm');
-    const btn = document.getElementById('continueBtn');
-    const moduleNameEl = document.getElementById('moduleName');
+    const currentModule = getKV('currentModule');
+    const ranked = getKV('rankings')?.[currentModule] || [];
+    const confidence = {};
+    const form = document.getElementById('confidence-form');
+    const continueBtn = document.getElementById('continue');
 
-    const moduleId = getKV('currentModule');
-    const moduleName = MODULE_TITLES[moduleId] || moduleId;
-    const ranked = getKV('rankings')?.[moduleId] || [];
+    // Set header info
+    if (currentModule && MODULE_TITLES[currentModule]) {
+      document.getElementById('module-title').textContent =
+        `Module: ${currentModule} — ${MODULE_TITLES[currentModule]}`;
+    }
 
-    // Set visible module name
-    moduleNameEl.textContent = `${moduleId} — ${moduleName}`;
-
-    const options = [
-      { emoji: '🫤', label: 'Not confident', value: 'not_confident' },
-      { emoji: '🙂', label: 'Somewhat', value: 'somewhat' },
-      { emoji: '😁', label: 'Very confident', value: 'very_confident' },
-    ];
-
-    const state = {};
-
-    // Render each question row
-    for (const q of ranked) {
+    // Render confidence rows
+    ranked.forEach((qText, index) => {
       const row = document.createElement('div');
       row.className = 'confidence-row';
 
-      const questionLabel = document.createElement('p');
-      questionLabel.textContent = q.label;
-      questionLabel.className = 'question-label';
-      row.appendChild(questionLabel);
+      const qLabel = document.createElement('div');
+      qLabel.className = 'question-label';
+      qLabel.textContent = qText;
 
-      const picker = document.createElement('div');
-      picker.className = 'emoji-group';
+      const options = document.createElement('div');
+      options.className = 'emoji-options';
 
-      for (const opt of options) {
-        const label = document.createElement('label');
-        label.className = 'emoji-option';
-        label.title = opt.label;
+      ['😟', '😐', '😄'].forEach((emoji, level) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'emoji-btn';
+        btn.textContent = emoji;
 
-        const input = document.createElement('input');
-        input.type = 'radio';
-        input.name = q.id;
-        input.value = opt.value;
-        input.addEventListener('change', () => {
-          state[q.id] = input.value;
-          updateState();
+        btn.addEventListener('click', () => {
+          // Mark selected button
+          options.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+
+          confidence[qText] = level;
+          checkAllAnswered();
         });
 
-        label.appendChild(input);
-        label.append(` ${opt.emoji}`);
-        picker.appendChild(label);
-      }
+        options.appendChild(btn);
+      });
 
-      row.appendChild(picker);
+      row.appendChild(qLabel);
+      row.appendChild(options);
       form.appendChild(row);
-    }
-
-    function updateState() {
-      const totalAnswered = Object.keys(state).length;
-      btn.disabled = totalAnswered !== ranked.length;
-    }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const confidence = {};
-      for (const q of ranked) {
-        confidence[q.id] = state[q.id];
-      }
-      setKV('confidence', confidence);
-      window.location.assign('m1_q1.html'); // Update this if needed
     });
+
+    // Enable continue when all are answered
+    function checkAllAnswered() {
+      if (Object.keys(confidence).length === ranked.length) {
+        continueBtn.disabled = false;
+      }
+    }
+
+    continueBtn.addEventListener('click', () => {
+      const allConfidence = getKV('confidence') || {};
+      allConfidence[currentModule] = confidence;
+      setKV('confidence', allConfidence);
+      setProgress(60);
+      window.location.href = 'q1.html';
+    });
+
+    setProgress(40);
   </script>
 </body>
 </html>
