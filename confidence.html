@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <title>Confidence Rating</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
       background: #f9f9f9;
       margin: 0;
       padding: 2rem;
@@ -38,177 +37,174 @@
 
     h2 {
       font-size: 1.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
     }
 
-    .question {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 1rem 0.5rem;
-      border-bottom: 1px solid #ddd;
-      flex-wrap: wrap;
+    .question-block {
+      margin-bottom: 2rem;
     }
 
-    .label {
+    .question-text {
       font-size: 1.1rem;
-      flex: 1 1 60%;
+      margin-bottom: 0.75rem;
     }
 
-    .emojis {
+    .emoji-options {
       display: flex;
-      gap: 0.5rem;
-      flex: 1 1 35%;
-      justify-content: flex-end;
+      justify-content: flex-start;
+      gap: 1rem;
+      font-size: 1.5rem;
       flex-wrap: wrap;
     }
 
-    .emojis button {
-      font-size: 1.5rem;
-      background: none;
-      border: 2px solid transparent;
-      border-radius: 8px;
+    .emoji {
       cursor: pointer;
-      padding: 0.3rem 0.5rem;
-      transition: 0.2s ease-in-out;
+      padding: 0.3rem 0.6rem;
+      border-radius: 8px;
+      transition: background 0.2s;
+      border: 2px solid transparent;
     }
 
-    .emojis button.selected {
+    .emoji.selected {
+      background: #e0e7ff;
       border-color: #4f46e5;
-      background: #eef;
     }
 
-    #continue {
-      margin-top: 1.5rem;
+    .actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .btn {
       padding: 0.75rem 1.5rem;
-      background: #ccc;
+      background: #aaa;
       color: white;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
       cursor: not-allowed;
+      opacity: 0.6;
       transition: background 0.2s ease;
-      display: block;
-      width: 100%;
     }
 
-    #continue.enabled {
+    .btn.ready {
       background: #4f46e5;
       cursor: pointer;
+      opacity: 1;
     }
 
-    @media (max-width: 600px) {
-      .question {
-        flex-direction: column;
-        align-items: flex-start;
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
       }
-      .emojis {
-        justify-content: flex-start;
-        margin-top: 0.5rem;
+
+      main.container {
+        padding: 1.5rem 1rem;
+      }
+
+      .emoji-options {
+        justify-content: center;
+      }
+
+      .btn {
+        width: 100%;
       }
     }
   </style>
 </head>
-
 <body>
-  <div class="progress"><i id="progressBar" style="width: 40%"></i></div>
+  <div class="progress"><i style="width: 15%"></i></div>
 
-  <main class="container" role="main">
+  <main class="container">
     <h2>How confident are you about each question?</h2>
-    <div id="questionList"></div>
-    <button id="continue" disabled>Continue</button>
+
+    <div id="questionContainer"></div>
+
+    <div class="actions">
+      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
+    </div>
   </main>
 
   <script type="module">
-    // Load local storage data
-    const getKV = (k, fallback = null) => {
-      try {
-        return JSON.parse(localStorage.getItem(k)) ?? fallback;
-      } catch {
-        return fallback;
-      }
-    };
+    // Assume these are imported in your main build
+    // import { order } from './modules.js';
 
-    const setKV = (k, v) => {
-      try {
-        localStorage.setItem(k, JSON.stringify(v));
-      } catch {}
-    };
+    const order = JSON.parse(localStorage.getItem("order") || "[]");
+    const container = document.getElementById("questionContainer");
+    const continueBtn = document.getElementById("continueBtn");
 
-    const setProgress = (pct) => {
-      try {
-        document.getElementById('progressBar').style.width = pct + '%';
-      } catch {}
-    };
-
-    // Module logic
-    const params = new URLSearchParams(location.search);
-    const moduleId = params.get('module') ||
-      getKV('current_module') ||
-      sessionStorage.getItem('selected_module') ||
-      'M1';
-
-    setProgress(40);
-
-    const questionList = document.getElementById('questionList');
-    const continueBtn = document.getElementById('continue');
-
-    const ranked = getKV(`${moduleId}_questions`, []);
-    const order = getKV(`${moduleId}_rank`, []);
-    const sorted = order.map(id => ranked.find(q => q.id === id));
-    const confidence = {};
+    const state = {}; // Tracks selected confidence per question
 
     const emojis = [
-      { emoji: '😕', label: 'Not Confident', value: 1 },
-      { emoji: '😐', label: 'Somewhat', value: 2 },
-      { emoji: '😄', label: 'Very', value: 3 }
+      { icon: "😩", value: 1, label: "Not confident" },
+      { icon: "😐", value: 2, label: "Somewhat confident" },
+      { icon: "😊", value: 3, label: "Confident" },
+      { icon: "😎", value: 4, label: "Very confident" },
     ];
 
-    sorted.forEach(q => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'question';
+    function render() {
+      container.innerHTML = "";
+      order.forEach((question, index) => {
+        const block = document.createElement("div");
+        block.className = "question-block";
 
-      const label = document.createElement('div');
-      label.className = 'label math';
-      label.innerHTML = q?.label || q.id;
+        const text = document.createElement("div");
+        text.className = "question-text";
+        text.textContent = question;
 
-      const emojiContainer = document.createElement('div');
-      emojiContainer.className = 'emojis';
+        const emojiRow = document.createElement("div");
+        emojiRow.className = "emoji-options";
 
-      emojis.forEach(({ emoji, value }) => {
-        const btn = document.createElement('button');
-        btn.textContent = emoji;
-        btn.title = emoji;
+        emojis.forEach((emoji) => {
+          const el = document.createElement("div");
+          el.className = "emoji";
+          el.innerText = emoji.icon;
+          el.title = emoji.label;
 
-        btn.addEventListener('click', () => {
-          emojiContainer.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          confidence[q.id] = value;
+          if (state[index] === emoji.value) {
+            el.classList.add("selected");
+          }
 
-          const allAnswered = sorted.every(q => confidence[q.id] !== undefined);
-          continueBtn.disabled = !allAnswered;
-          continueBtn.classList.toggle('enabled', allAnswered);
+          el.addEventListener("click", () => {
+            state[index] = emoji.value;
+
+            // Deselect others
+            Array.from(emojiRow.children).forEach(child =>
+              child.classList.remove("selected")
+            );
+            el.classList.add("selected");
+
+            checkAllRated();
+          });
+
+          emojiRow.appendChild(el);
         });
 
-        emojiContainer.appendChild(btn);
+        block.appendChild(text);
+        block.appendChild(emojiRow);
+        container.appendChild(block);
       });
-
-      wrapper.appendChild(label);
-      wrapper.appendChild(emojiContainer);
-      questionList.appendChild(wrapper);
-    });
-
-    if (window.MathJax?.typesetPromise) {
-      MathJax.typesetPromise([questionList]).catch(() => {});
     }
 
-    continueBtn.addEventListener('click', () => {
-      if (continueBtn.disabled) return;
+    function checkAllRated() {
+      const allRated = Object.keys(state).length === order.length;
+      continueBtn.disabled = !allRated;
+      if (allRated) {
+        continueBtn.classList.add("ready");
+      } else {
+        continueBtn.classList.remove("ready");
+      }
+    }
 
-      setKV(`${moduleId}_confidence`, confidence);
-      window.location.href = 'practice.html?module=' + moduleId;
+    continueBtn.addEventListener("click", () => {
+      if (Object.keys(state).length === order.length) {
+        localStorage.setItem("confidence", JSON.stringify(state));
+        window.location.href = "next-page.html"; // Update to your next page
+      }
     });
+
+    render();
   </script>
 </body>
 </html>
