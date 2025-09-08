@@ -7,7 +7,6 @@
   <link href="css/style.css" rel="stylesheet" />
 
   <style>
-    /* Light, page-local styles that play nice with your main CSS */
     .rank-list { list-style: none; padding: 0; margin: 1rem 0; }
     .rank-item {
       display: flex; align-items: center; gap: .75rem;
@@ -20,6 +19,7 @@
     .dragging { opacity: .6; }
     .hint   { font-size: .95rem; opacity: .8; margin:.25rem 0; }
     .actions { display:flex; justify-content:center; margin-top:1rem; }
+    .alert { background:#fff3cd; border:1px solid #ffe58f; color:#8a6d3b; padding:12px 14px; border-radius:10px; margin: 12px 0; }
   </style>
 
   <!-- MathJax for LaTeX rendering ($ ... $ inline) -->
@@ -39,6 +39,7 @@
     <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
     <p class="hint" id="hint">Your order helps pick the first practice question.</p>
 
+    <div id="notice" class="alert" style="display:none"></div>
     <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
 
     <div class="actions">
@@ -47,31 +48,43 @@
   </main>
 
   <script type="module">
-    // --- Load helpers (safe fallbacks if app.js isn't present) ---
+    // --- Helpers (fallbacks if app.js missing) ---
     let setKV = () => {};
     let getKV = () => null;
     let setProgress = (pct) => { try { document.getElementById('progressBar').style.width = pct + '%'; } catch {} };
 
     try {
-      const mod = await import('./js/app.js');
-      if (typeof mod.setKV === 'function') setKV = mod.setKV;
-      if (typeof mod.getKV === 'function') getKV = mod.getKV;
-      if (typeof mod.setProgress === 'function') setProgress = mod.setProgress;
-    } catch { /* optional */ }
+      const app = await import('./js/app.js');       // <-- ensure this path exists
+      if (app.setKV) setKV = app.setKV;
+      if (app.getKV) getKV = app.getKV;
+      if (app.setProgress) setProgress = app.setProgress;
+    } catch (e) {
+      console.warn('[rank] app.js not loaded:', e);
+    }
 
-    // --- Import question catalog ---
-    const { MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/modules.js');
-
-    // --- Resolve selected module (query > storage fallbacks) ---
+    // --- Resolve selected module robustly ---
     const params = new URLSearchParams(location.search);
     let moduleId =
       params.get('module') ||
-      getKV('current_module') ||
-      getKV('selected_module') ||
-      (sessionStorage.getItem('selected_module') || 'M1');
+      getKV?.('current_module') ||
+      getKV?.('selected_module') ||
+      sessionStorage.getItem('selected_module') ||
+      'M1';
 
-    // Normalize and persist
-    setKV('current_module', moduleId);
+    setKV('current_module', moduleId); // normalize
+    console.log('[rank] moduleId =', moduleId);
+
+    // --- Import question catalog with fallback ---
+    let MODULE_TITLES, MODULE_QUESTIONS;
+    try {
+      // CRITICAL: file must be at /js/modules.js (case-sensitive on GitHub Pages)
+      ({ MODULE_TITLES, MODULE_QUESTIONS } = await import('./js/modules.js'));
+    } catch (e) {
+      console.error('[rank] Failed to import ./js/modules.js', e);
+      // Minimal emergency fallback so UI doesn't go blank
+      MODULE_TITLES = { M1:'Foundational Skills', M2:'Equations & Inequalities', M3:'Functions', M4:'Polynomials' };
+      MODULE_QUESTIONS = { [moduleId]: [] };
+    }
 
     // --- Page title / progress ---
     const titleMap = {
@@ -83,17 +96,27 @@
     document.getElementById('moduleTitle').textContent = `Rank: ${titleMap[moduleId] || moduleId}`;
     try { setProgress(30); } catch {}
 
-    // --- Pull the 5 questions for this module ---
+    const notice = document.getElementById('notice');
     const listEl = document.getElementById('rankList');
     const btn    = document.getElementById('continueBtn');
-    const questions = Array.isArray(MODULE_QUESTIONS[moduleId]) ? MODULE_QUESTIONS[moduleId] : [];
+
+    // --- Pull the 5 questions for this module ---
+    const questions = Array.isArray(MODULE_QUESTIONS?.[moduleId]) ? MODULE_QUESTIONS[moduleId] : [];
+    console.log('[rank] questions found:', questions);
 
     if (questions.length !== 5) {
-      // If catalog is missing, send back to tiles
-      window.location.assign('modules.html');
+      // Helpful message + exit early
+      notice.style.display = 'block';
+      notice.innerHTML = `
+        <strong>We couldn’t load the 5 questions for ${moduleId}.</strong><br/>
+        Check that <code>/js/modules.js</code> exists and exports <code>MODULE_QUESTIONS</code> with exactly 5 items for ${moduleId}.<br/>
+        Also verify the file path casing matches: <code>js/modules.js</code> (GitHub Pages is case-sensitive).
+      `;
+      btn.disabled = true;
+      throw new Error('Missing or malformed MODULE_QUESTIONS for ' + moduleId);
     }
 
-    // --- Restore saved order if present; otherwise shuffle once and save ---
+    // --- Restore order if present; else shuffle once and save ---
     const savedKey   = `${moduleId}_rank`;
     const savedOrder = getKV(savedKey, null);
 
@@ -110,10 +133,9 @@
       order = savedOrder.slice();
     } else {
       order = shuffle(questions.map(q => q.id));
-      setKV(savedKey, order); // persist immediately so refresh keeps the same order
+      setKV(savedKey, order); // persist immediately
     }
-
-    // Keep catalog handy for later steps (confidence / Q1 / Q2)
+    // Keep catalog for later steps
     setKV(`${moduleId}_questions`, questions);
 
     // --- Render list ---
@@ -133,8 +155,6 @@
         listEl.appendChild(li);
       });
       btn.disabled = questions.length === 0;
-
-      // MathJax re-typeset labels
       if (window.MathJax?.typesetPromise) {
         window.MathJax.typesetPromise([listEl]).catch(()=>{});
       } else if (window.MathJax?.typeset) {
@@ -143,26 +163,22 @@
     }
     render();
 
-    // --- Drag & drop (mouse) ---
+    // --- Drag & drop ---
     let dragging = null;
-
     listEl.addEventListener('dragstart', (e) => {
       const li = e.target.closest('li.rank-item');
       if (!li) return;
       dragging = li;
       li.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', li.dataset.id); // required for Firefox
+      e.dataTransfer.setData('text/plain', li.dataset.id);
     });
-
     listEl.addEventListener('dragend', () => {
       if (!dragging) return;
       dragging.classList.remove('dragging');
       dragging = null;
-      // Re-number badges
       [...listEl.children].forEach((li, i) => li.querySelector('.badge').textContent = i + 1);
     });
-
     listEl.addEventListener('dragover', (e) => {
       e.preventDefault();
       const after = getDragAfterElement(listEl, e.clientY);
@@ -170,17 +186,13 @@
       if (after == null) listEl.appendChild(dragging);
       else listEl.insertBefore(dragging, after);
     });
-
     function getDragAfterElement(container, y) {
       const els = [...container.querySelectorAll('li.rank-item:not(.dragging)')];
       return els.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-          return { offset, element: child };
-        } else {
-          return closest;
-        }
+        if (offset < 0 && offset > closest.offset) return { offset, element: child };
+        return closest;
       }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
@@ -188,9 +200,7 @@
     btn.addEventListener('click', () => {
       const ids = [...listEl.querySelectorAll('li.rank-item')].map(li => li.dataset.id);
       setKV(savedKey, ids);
-      // also ensure catalog is persisted (for the Confidence page)
       setKV(`${moduleId}_questions`, questions);
-      // proceed
       window.location.assign('confidence.html');
     });
   </script>
