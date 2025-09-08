@@ -60,20 +60,26 @@
       font-weight: 500;
     }
 
-    .slider-wrap {
+    .emoji-row {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      gap: 0.5rem;
+      justify-content: space-between;
+      font-size: 1.5rem;
+      margin-top: 0.5rem;
     }
 
-    .slider-wrap input[type="range"] {
-      flex-grow: 1;
+    .emoji {
+      cursor: pointer;
+      padding: 0.3rem 0.6rem;
+      border-radius: 8px;
+      transition: background 0.2s ease;
+      user-select: none;
     }
 
-    .slider-value {
-      width: 2ch;
-      text-align: center;
-      font-weight: 500;
+    .emoji.selected {
+      background: #4f46e5;
+      color: white;
+      transform: scale(1.1);
     }
 
     .actions {
@@ -123,7 +129,7 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:45%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:60%"></i></div>
 
   <main class="container" role="main">
     <h2>Rate Your Confidence</h2>
@@ -137,75 +143,80 @@
   </main>
 
   <script type="module">
-    let setKV = () => {};
     let getKV = () => null;
+    let setKV = () => {};
 
     try {
       const app = await import('./js/app.js');
-      if (app.setKV) setKV = app.setKV;
       if (app.getKV) getKV = app.getKV;
+      if (app.setKV) setKV = app.setKV;
     } catch (e) {
       console.warn('[confidence] app.js not loaded:', e);
     }
-
-    const container = document.getElementById('questionContainer');
-    const btn = document.getElementById('continueBtn');
 
     const moduleId =
       sessionStorage.getItem('selected_module') ||
       getKV('current_module') ||
       'M1';
 
+    const questions = getKV(`${moduleId}_questions`, []);
+    const ranking = getKV(`${moduleId}_ranking`, []);
     const saved = getKV(`${moduleId}_confidence`, {});
 
-    // Fallback questions if none found
-    const questions =
-      getKV(`${moduleId}_questions`, [])?.length === 5
-        ? getKV(`${moduleId}_questions`)
-        : [
-            { id: 'q1', label: 'What is 2 + 2?' },
-            { id: 'q2', label: 'Solve for x: 2x = 10' },
-            { id: 'q3', label: 'Integrate x^2 dx' },
-            { id: 'q4', label: 'Define a derivative' },
-            { id: 'q5', label: 'What is the limit as x approaches 0 of sin(x)/x?' }
-          ];
+    const container = document.getElementById('questionContainer');
+    const btn = document.getElementById('continueBtn');
 
-    const values = {};
+    const emojis = ['😟', '😐', '🙂', '😄', '😎'];
+    const confidence = {};
 
-    questions.forEach((q) => {
-      const val = saved[q.id] ?? 3;
-      values[q.id] = val;
+    // map ID to question
+    const qMap = {};
+    questions.forEach(q => qMap[q.id] = q.label);
+
+    ranking.forEach(qid => {
+      const label = qMap[qid] || '[Missing Question]';
+      const val = saved[qid] || null;
 
       const box = document.createElement('div');
       box.className = 'qbox';
       box.innerHTML = `
-        <div class="qlabel math">${q.label}</div>
-        <div class="slider-wrap">
-          <input type="range" min="1" max="5" step="1" value="${val}" id="slider-${q.id}">
-          <span class="slider-value" id="val-${q.id}">${val}</span>
+        <div class="qlabel math">${label}</div>
+        <div class="emoji-row" data-qid="${qid}">
+          ${emojis.map((e, i) => `<span class="emoji" data-val="${i + 1}">${e}</span>`).join('')}
         </div>
       `;
+
       container.appendChild(box);
+
+      // preselect saved value
+      if (val) {
+        box.querySelector(`.emoji[data-val="${val}"]`)?.classList.add('selected');
+        confidence[qid] = val;
+      }
     });
 
     if (window.MathJax?.typesetPromise) {
       MathJax.typesetPromise([container]);
     }
 
-    container.addEventListener('input', (e) => {
-      if (e.target.matches('input[type=range]')) {
-        const id = e.target.id.replace('slider-', '');
-        const val = e.target.value;
-        values[id] = Number(val);
-        document.getElementById(`val-${id}`).textContent = val;
+    container.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('emoji')) return;
 
-        const answered = questions.every(q => values[q.id] > 0);
-        btn.disabled = !answered;
-      }
+      const row = e.target.closest('.emoji-row');
+      const qid = row.dataset.qid;
+      const val = Number(e.target.dataset.val);
+
+      [...row.querySelectorAll('.emoji')].forEach(el => el.classList.remove('selected'));
+      e.target.classList.add('selected');
+
+      confidence[qid] = val;
+
+      const allRated = ranking.every(qid => confidence[qid] > 0);
+      btn.disabled = !allRated;
     });
 
     btn.addEventListener('click', () => {
-      setKV(`${moduleId}_confidence`, values);
+      setKV(`${moduleId}_confidence`, confidence);
       window.location.assign('practice.html');
     });
   </script>
