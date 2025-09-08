@@ -46,48 +46,40 @@
       margin-bottom: 1.5rem;
     }
 
-    .question {
-      margin-bottom: 1.5rem;
-    }
-
-    .question p {
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-    }
-
-    .confidence-scale {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .confidence-scale label {
-      flex: 1;
-      text-align: center;
-      padding: 0.5rem;
-      background: #f3f4f6;
+    .qbox {
+      background: #fdfdfd;
+      padding: 1rem 1.25rem;
       border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 0 0.25rem;
-      font-size: 0.9rem;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,.03);
     }
 
-    .confidence-scale input[type="radio"] {
-      display: none;
+    .qlabel {
+      margin-bottom: 0.75rem;
+      font-weight: 500;
     }
 
-    .confidence-scale input[type="radio"]:checked + label {
-      background-color: #4f46e5;
-      color: white;
-      font-weight: bold;
-      border-color: #4f46e5;
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .slider-wrap input[type="range"] {
+      flex-grow: 1;
+    }
+
+    .slider-value {
+      width: 2ch;
+      text-align: center;
+      font-weight: 500;
     }
 
     .actions {
       display: flex;
       justify-content: center;
-      margin-top: 2rem;
+      margin-top: 1.5rem;
     }
 
     .btn {
@@ -115,117 +107,106 @@
         padding: 1.5rem 1rem;
       }
 
-      .confidence-scale {
-        flex-direction: column;
-      }
-
-      .confidence-scale label {
-        width: 100%;
-        margin: 0.25rem 0;
-      }
-
       .btn {
         width: 100%;
       }
     }
   </style>
+
+  <!-- MathJax for LaTeX rendering -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:60%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:45%"></i></div>
 
   <main class="container" role="main">
     <h2>Rate Your Confidence</h2>
     <p class="sub">How confident are you about answering each question?</p>
 
-    <div id="questions"></div>
+    <div id="questionContainer"></div>
 
     <div class="actions">
-      <button id="submitBtn" class="btn" disabled>Continue</button>
+      <button id="continueBtn" class="btn" type="button" disabled>Continue</button>
     </div>
   </main>
 
   <script type="module">
-    const getKV = window.getKV || (() => null);
-    const setKV = window.setKV || (() => {});
-    const setProgress = window.setProgress || ((pct) => {
-      try {
-        document.getElementById('progressBar').style.width = pct + '%';
-      } catch {}
-    });
+    let setKV = () => {};
+    let getKV = () => null;
 
-    setProgress(60);
+    try {
+      const app = await import('./js/app.js');
+      if (app.setKV) setKV = app.setKV;
+      if (app.getKV) getKV = app.getKV;
+    } catch (e) {
+      console.warn('[confidence] app.js not loaded:', e);
+    }
+
+    const container = document.getElementById('questionContainer');
+    const btn = document.getElementById('continueBtn');
 
     const moduleId =
-      getKV('current_module') ||
-      getKV('selected_module') ||
       sessionStorage.getItem('selected_module') ||
+      getKV('current_module') ||
       'M1';
 
-    const questions = getKV(`${moduleId}_questions`, []);
     const saved = getKV(`${moduleId}_confidence`, {});
 
-    const container = document.getElementById('questions');
-    const btn = document.getElementById('submitBtn');
+    // Fallback questions if none found
+    const questions =
+      getKV(`${moduleId}_questions`, [])?.length === 5
+        ? getKV(`${moduleId}_questions`)
+        : [
+            { id: 'q1', label: 'What is 2 + 2?' },
+            { id: 'q2', label: 'Solve for x: 2x = 10' },
+            { id: 'q3', label: 'Integrate x^2 dx' },
+            { id: 'q4', label: 'Define a derivative' },
+            { id: 'q5', label: 'What is the limit as x approaches 0 of sin(x)/x?' }
+          ];
 
-    function renderQuestions() {
-      container.innerHTML = '';
-      questions.forEach((q, i) => {
-        const id = `q-${q.id}`;
-        const div = document.createElement('div');
-        div.className = 'question';
+    const values = {};
 
-        const p = document.createElement('p');
-        p.textContent = `Q${i + 1}: ${q.label}`;
-        div.appendChild(p);
+    questions.forEach((q) => {
+      const val = saved[q.id] ?? 3;
+      values[q.id] = val;
 
-        const scale = document.createElement('div');
-        scale.className = 'confidence-scale';
+      const box = document.createElement('div');
+      box.className = 'qbox';
+      box.innerHTML = `
+        <div class="qlabel math">${q.label}</div>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="5" step="1" value="${val}" id="slider-${q.id}">
+          <span class="slider-value" id="val-${q.id}">${val}</span>
+        </div>
+      `;
+      container.appendChild(box);
+    });
 
-        for (let j = 1; j <= 5; j++) {
-          const input = document.createElement('input');
-          input.type = 'radio';
-          input.name = id;
-          input.id = `${id}-${j}`;
-          input.value = j;
-          if (saved?.[q.id] == j) input.checked = true;
-
-          const label = document.createElement('label');
-          label.htmlFor = `${id}-${j}`;
-          label.textContent = j;
-
-          input.addEventListener('change', checkComplete);
-
-          scale.appendChild(input);
-          scale.appendChild(label);
-        }
-
-        div.appendChild(scale);
-        container.appendChild(div);
-      });
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise([container]);
     }
 
-    function checkComplete() {
-      const values = {};
-      questions.forEach((q) => {
-        const radios = document.getElementsByName(`q-${q.id}`);
-        for (let radio of radios) {
-          if (radio.checked) {
-            values[q.id] = Number(radio.value);
-            break;
-          }
-        }
-      });
+    container.addEventListener('input', (e) => {
+      if (e.target.matches('input[type=range]')) {
+        const id = e.target.id.replace('slider-', '');
+        const val = e.target.value;
+        values[id] = Number(val);
+        document.getElementById(`val-${id}`).textContent = val;
 
-      const complete = Object.keys(values).length === questions.length;
-      btn.disabled = !complete;
-      if (complete) setKV(`${moduleId}_confidence`, values);
-    }
-
-    renderQuestions();
-    checkComplete();
+        const answered = questions.every(q => values[q.id] > 0);
+        btn.disabled = !answered;
+      }
+    });
 
     btn.addEventListener('click', () => {
-      location.href = 'practice.html';
+      setKV(`${moduleId}_confidence`, values);
+      window.location.assign('practice.html');
     });
   </script>
 </body>
