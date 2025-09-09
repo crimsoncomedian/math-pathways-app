@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Question 1</title>
+  <title>Practice Question 1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      font-family: system-ui, sans-serif;
       background: #f9f9f9;
       margin: 0;
       padding: 2rem;
@@ -41,25 +41,12 @@
     }
 
     .question {
-      font-size: 1.25rem;
-      line-height: 1.6;
-      padding: 1.25rem;
-      background: #f3f4f6;
-      border-left: 4px solid #4f46e5;
-      border-radius: 10px;
-      margin-bottom: 2rem;
+      font-size: 1.3rem;
+      padding: 1rem 0;
     }
 
-    .loading {
-      color: #666;
-      font-style: italic;
-    }
-
-    .actions {
-      text-align: center;
-    }
-
-    .btn {
+    #continue {
+      margin-top: 2rem;
       padding: 0.75rem 1.5rem;
       background: #4f46e5;
       color: white;
@@ -67,98 +54,74 @@
       border-radius: 8px;
       font-size: 1rem;
       cursor: pointer;
-      transition: background 0.2s ease;
-    }
-
-    .btn:hover {
-      background: #4338ca;
-    }
-
-    @media (max-width: 480px) {
-      body {
-        padding: 1rem;
-      }
-
-      main.container {
-        padding: 1.5rem 1rem;
-      }
-
-      .btn {
-        width: 100%;
-      }
+      display: block;
+      width: 100%;
     }
   </style>
 </head>
+
 <body>
-  <div class="progress"><i style="width: 60%"></i></div>
+  <div class="progress"><i id="progressBar" style="width: 80%"></i></div>
 
-  <main class="container">
-    <h2>Your First Practice Question</h2>
-    <div id="questionDisplay" class="question loading">Loading...</div>
-
-    <div class="actions">
-      <button class="btn" onclick="next()">Next</button>
-    </div>
+  <main class="container" role="main">
+    <h2>Try this question first</h2>
+    <div class="question" id="qDisplay">Loading...</div>
+    <button id="continue">Continue</button>
   </main>
 
-  <script>
-    const orderedQuestions = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
+  <script type="module">
+    const ordered = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
     const confidence = JSON.parse(localStorage.getItem("confidence") || "{}");
-    const display = document.getElementById("questionDisplay");
+    const qDisplay = document.getElementById("qDisplay");
 
-    function getPivotQuestion() {
-      const grouped = { high: [], medium: [], low: [] };
+    // Group questions by confidence
+    const high = [];
+    const med = [];
+    const low = [];
 
-      orderedQuestions.forEach((q, i) => {
-        const c = confidence[i];
-        if (c === 4) grouped.high.push({ q, i });
-        else if (c === 3 || c === 2) grouped.medium.push({ q, i });
-        else if (c === 1) grouped.low.push({ q, i });
-      });
+    ordered.forEach((q, index) => {
+      const level = confidence[q.id];
+      if (level === 3) high.push({ ...q, index });
+      else if (level === 2) med.push({ ...q, index });
+      else if (level === 1) low.push({ ...q, index });
+    });
 
-      if (grouped.high.length >= 2) {
-        return grouped.high[grouped.high.length - 2]; // 2nd hardest high
-      } else if (grouped.high.length >= 1 && grouped.medium.length >= 1) {
-        return grouped.high[grouped.high.length - 1]; // hardest high
-      } else if (grouped.medium.length > 0) {
-        return grouped.medium[0]; // easiest medium
-      } else if (grouped.low.length >= 1 && grouped.medium.length >= 1) {
-        return grouped.medium[0]; // easiest medium again
-      } else if (grouped.low.length > 1) {
-        return grouped.low[1]; // 2nd easiest low
-      } else if (grouped.low.length === 1) {
-        return grouped.low[0];
-      }
+    // Selection logic
+    let selected = null;
 
-      return null;
+    if (high.length >= 2) {
+      // Pick 2nd hardest high
+      selected = high[high.length - 2];
+    } else if (high.length === 1 && med.length > 0) {
+      // Pick hardest high
+      selected = high[0];
+    } else if (med.length > 0 && low.length === 0) {
+      // Only medium → easiest
+      selected = med[0];
+    } else if (med.length > 0 && low.length > 0) {
+      // Med + Low → easiest med
+      selected = med[0];
+    } else if (low.length >= 2) {
+      // Only low → 2nd easiest
+      selected = low[1];
+    } else if (low.length === 1) {
+      selected = low[0];
+    } else {
+      // Fallback: pick middle-ranked question
+      selected = { ...ordered[Math.floor(ordered.length / 2)], index: Math.floor(ordered.length / 2) };
     }
 
-    function render() {
-      if (!orderedQuestions.length || Object.keys(confidence).length === 0) {
-        display.textContent = "No data found. Please complete ranking and confidence rating first.";
-        display.classList.remove("loading");
-        return;
-      }
+    // Display question and save index
+    qDisplay.innerHTML = selected.label;
+    localStorage.setItem("q1_index", selected.index);
 
-      const result = getPivotQuestion();
-
-      if (!result) {
-        display.textContent = "Could not determine a suitable question.";
-        display.classList.remove("loading");
-        return;
-      }
-
-      display.textContent = result.q;
-      display.classList.remove("loading");
-
-      localStorage.setItem("q1_index", result.i); // Save index for later use
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise([qDisplay]).catch(() => {});
     }
 
-    function next() {
-      window.location.href = "q2.html"; // Adjust as needed
-    }
-
-    render();
+    document.getElementById("continue").addEventListener("click", () => {
+      window.location.href = "q2.html";
+    });
   </script>
 </body>
 </html>
