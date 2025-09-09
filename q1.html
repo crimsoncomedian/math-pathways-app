@@ -2,9 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Practice Question 1</title>
+  <title>First Question</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- MathJax configuration -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -16,110 +26,151 @@
     .progress {
       background: #eee;
       height: 6px;
-      margin-bottom: 1.5rem;
+      margin-bottom: 2rem;
     }
 
     .progress i {
       display: block;
       background: #4f46e5;
       height: 100%;
-      transition: width 0.3s;
+      width: 60%;
     }
 
-    main.container {
+    main {
       background: white;
-      max-width: 720px;
+      max-width: 640px;
       margin: 0 auto;
       padding: 2rem 2.5rem;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      text-align: center;
     }
 
     h2 {
-      font-size: 1.75rem;
-      margin-bottom: 1rem;
+      font-size: 1.6rem;
+      margin-bottom: 1.25rem;
     }
 
-    .question {
-      font-size: 1.3rem;
-      padding: 1rem 0;
+    #question {
+      font-size: 1.2rem;
+      margin: 1.5rem 0;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      margin-top: 1rem;
     }
 
     #continue {
       margin-top: 2rem;
       padding: 0.75rem 1.5rem;
-      background: #4f46e5;
+      background: #ccc;
       color: white;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
-      cursor: pointer;
-      display: block;
+      cursor: not-allowed;
+      transition: background 0.2s ease;
       width: 100%;
+    }
+
+    #continue.enabled {
+      background: #4f46e5;
+      cursor: pointer;
     }
   </style>
 </head>
 
 <body>
-  <div class="progress"><i id="progressBar" style="width: 80%"></i></div>
+  <div class="progress"><i></i></div>
 
-  <main class="container" role="main">
+  <main>
     <h2>Try this question first</h2>
-    <div class="question" id="qDisplay">Loading...</div>
-    <button id="continue">Continue</button>
+    <div id="question" class="math">Loading...</div>
+
+    <label for="answer"><strong>Your Answer</strong></label>
+    <textarea id="answer" placeholder="Type your answer here..."></textarea>
+
+    <button id="continue" disabled>Continue</button>
   </main>
 
-  <script type="module">
-    const ordered = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
-    const confidence = JSON.parse(localStorage.getItem("confidence") || "{}");
-    const qDisplay = document.getElementById("qDisplay");
+  <script>
+    const questionEl = document.getElementById('question');
+    const answerEl = document.getElementById('answer');
+    const continueBtn = document.getElementById('continue');
+
+    const get = (k, fallback = null) => {
+      try {
+        return JSON.parse(localStorage.getItem(k)) ?? fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const set = (k, v) => {
+      try {
+        localStorage.setItem(k, JSON.stringify(v));
+      } catch {}
+    };
+
+    const ranked = get("orderedQuestions", []);
+    const confidence = get("confidence", {});
 
     // Group questions by confidence
-    const high = [];
-    const med = [];
-    const low = [];
-
-    ordered.forEach((q, index) => {
-      const level = confidence[q.id];
-      if (level === 3) high.push({ ...q, index });
-      else if (level === 2) med.push({ ...q, index });
-      else if (level === 1) low.push({ ...q, index });
+    const groups = { 1: [], 2: [], 3: [] };
+    ranked.forEach((q, i) => {
+      const c = confidence[i];
+      if (c) groups[c].push({ q, i });
     });
 
-    // Selection logic
-    let selected = null;
+    let chosen = null;
 
-    if (high.length >= 2) {
-      // Pick 2nd hardest high
-      selected = high[high.length - 2];
-    } else if (high.length === 1 && med.length > 0) {
-      // Pick hardest high
-      selected = high[0];
-    } else if (med.length > 0 && low.length === 0) {
-      // Only medium → easiest
-      selected = med[0];
-    } else if (med.length > 0 && low.length > 0) {
-      // Med + Low → easiest med
-      selected = med[0];
-    } else if (low.length >= 2) {
-      // Only low → 2nd easiest
-      selected = low[1];
-    } else if (low.length === 1) {
-      selected = low[0];
+    if (groups[3].length >= 2) {
+      // ≥ 2 High
+      chosen = groups[3][groups[3].length - 2];
+    } else if (groups[3].length && groups[2].length) {
+      // High + Med
+      chosen = groups[3][groups[3].length - 1];
+    } else if (groups[2].length && groups[1].length) {
+      // Med + Low
+      chosen = groups[2][0];
+    } else if (groups[2].length) {
+      // Only Med
+      chosen = groups[2][0];
+    } else if (groups[1].length) {
+      // Only Low
+      chosen = groups[1][1] || groups[1][0];
+    }
+
+    if (chosen) {
+      questionEl.innerHTML = chosen.q.label;
+      set("q1_index", chosen.i);
     } else {
-      // Fallback: pick middle-ranked question
-      selected = { ...ordered[Math.floor(ordered.length / 2)], index: Math.floor(ordered.length / 2) };
+      questionEl.innerHTML = "Could not determine question.";
     }
 
-    // Display question and save index
-    qDisplay.innerHTML = selected.label;
-    localStorage.setItem("q1_index", selected.index);
-
+    // Re-render math
     if (window.MathJax?.typesetPromise) {
-      MathJax.typesetPromise([qDisplay]).catch(() => {});
+      MathJax.typesetPromise([questionEl]).catch(() => {});
     }
 
-    document.getElementById("continue").addEventListener("click", () => {
+    // Enable button on input
+    answerEl.addEventListener('input', () => {
+      const value = answerEl.value.trim();
+      continueBtn.disabled = value === "";
+      continueBtn.classList.toggle("enabled", value !== "");
+    });
+
+    // Save and continue
+    continueBtn.addEventListener('click', () => {
+      const response = answerEl.value.trim();
+      set("q1_answer", response);
       window.location.href = "q2.html";
     });
   </script>
