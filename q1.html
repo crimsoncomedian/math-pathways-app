@@ -100,49 +100,51 @@
   </main>
 
   <script type="module">
-    const getKV = (k, fallback = null) => {
-      try {
-        return JSON.parse(localStorage.getItem(k)) ?? fallback;
-      } catch {
-        return fallback;
-      }
-    };
-
-    const setKV = (k, v) => {
-      try {
-        localStorage.setItem(k, JSON.stringify(v));
-      } catch {}
-    };
-
-    const moduleId = getKV('current_module') ?? 'M1';
-    const orderedQuestions = getKV(`${moduleId}_ranked`, []);
-    const q1Index = getKV('q1_index', null);
-
-    const questionText = document.getElementById('questionText');
-    const answerInput = document.getElementById('answer');
-    const continueBtn = document.getElementById('continueBtn');
-
-    // Get question and show it
-    let selected = orderedQuestions?.[q1Index];
-    let label = selected?.label ?? "Could not determine question.";
-
-    questionText.innerHTML = label;
-    if (window.MathJax?.typesetPromise) {
-      MathJax.typesetPromise([questionText]).catch(() => {});
+  const getKV = (k, fallback = null) => {
+    try {
+      return JSON.parse(localStorage.getItem(k)) ?? fallback;
+    } catch {
+      return fallback;
     }
+  };
 
-    // Enable continue when text is entered
-    answerInput.addEventListener('input', () => {
-      const filled = answerInput.value.trim().length > 0;
-      continueBtn.disabled = !filled;
-      continueBtn.classList.toggle('enabled', filled);
-    });
+  const setKV = (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch {}
+  };
 
-    continueBtn.addEventListener('click', () => {
-      const answer = answerInput.value.trim();
-      setKV('q1_answer', answer);
-      window.location.href = 'q2.html';
-    });
-  </script>
+  const moduleId = getKV('current_module') ?? 'M1';
+  const rank = getKV(`${moduleId}_rank`, []);
+  const questions = getKV(`${moduleId}_questions`, []);
+  const q1Index = getKV('q1_index', null);
+
+  const questionText = document.getElementById('questionText');
+  const answerInput = document.getElementById('answer');
+  const continueBtn = document.getElementById('continueBtn');
+
+  // Get question ID from rank list
+  const questionId = rank?.[q1Index];
+  const selected = questions.find(q => q.id === questionId);
+  const label = selected?.label ?? "Could not determine question.";
+
+  questionText.innerHTML = label;
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise([questionText]).catch(() => {});
+  }
+
+  // Enable continue when text is entered
+  answerInput.addEventListener('input', () => {
+    const filled = answerInput.value.trim().length > 0;
+    continueBtn.disabled = !filled;
+    continueBtn.classList.toggle('enabled', filled);
+  });
+
+  continueBtn.addEventListener('click', () => {
+    const answer = answerInput.value.trim();
+    setKV('q1_answer', answer);
+    window.location.href = 'q2.html';
+  });
+</script>
 </body>
 </html>
