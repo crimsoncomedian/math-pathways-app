@@ -1,143 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Assessment Complete</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Submit Your Answers</title>
   <style>
     body {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; background-color: #f9fafb; font-family: system-ui, sans-serif; margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 2rem;
     }
-    .card {
-      background: white; padding: 2rem; border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 92%;
+
+    .progress {
+      background: #eee;
+      height: 6px;
+      margin-bottom: 1.5rem;
     }
-    h1 { margin-top: 0; font-size: 1.75rem; color: #111827; }
-    p  { color: #374151; font-size: 1.05rem; margin: 0.75rem 0 1.25rem; }
-    .actions { display: flex; justify-content: center; gap: 1rem; margin-top: 1.25rem; }
-    .btn { background-color: #2563eb; color: #fff; padding: .6rem 1.25rem; border: 0; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
-    .btn:hover { background-color: #1d4ed8; }
-    .btn.secondary { background-color: #e5e7eb; color: #111827; }
-    .btn.secondary:hover { background-color: #d1d5db; }
-    .note { font-size: .95rem; color: #6b7280; margin-top: .75rem; }
-    .hidden { display: none; }
+
+    .progress i {
+      display: block;
+      background: #4f46e5;
+      height: 100%;
+    }
+
+    main.container {
+      background: white;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary {
+      font-size: 1rem;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      width: 100%;
+    }
+
+    button:hover {
+      background: #3730a3;
+    }
+
+    .section {
+      margin-bottom: 1.25rem;
+    }
+
+    .section h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1.25rem;
+    }
+
+    .question-block {
+      background: #f3f4f6;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="card">
-    <h1>You're All Done! 🎉</h1>
-    <p>Thanks for completing the assessment.</p>
-    <p id="status">Preparing your submission…</p>
-    <div class="actions">
-      <button id="restartBtn" class="btn secondary" type="button">Start Over</button>
-      <button id="exitBtn" class="btn" type="button">Exit</button>
-    </div>
-    <p id="errorMsg" class="note hidden"></p>
-  </div>
+  <div class="progress"><i style="width:100%"></i></div>
+
+  <main class="container">
+    <h2>You're All Done!</h2>
+    <p class="summary">Take one last look at your work before submitting it to your teacher.</p>
+
+    <div class="section" id="summary"></div>
+
+    <button id="submitBtn">Submit All Answers</button>
+  </main>
 
   <script type="module">
-    // ---- Optional helper import with safe fallbacks ----
-    let getKV = null;      // preferred, if exported
-    let getAll = null;
-    try {
-      const mod = await import('./js/app.js');
-      if (typeof mod.getKV === 'function') getKV = mod.getKV;
-      if (typeof mod.getAll === 'function') getAll = mod.getAll;
-    } catch (e) {
-      console.warn('Optional js/app.js not found or has no exports; using local fallbacks.', e);
+    import { getKV } from './js/app.js';
+
+    const moduleId = getKV('current_module') || 'M1';
+    const summaryDiv = document.getElementById('summary');
+
+    const ranked = getKV(`${moduleId}_rank`, []);
+    const questions = getKV(`${moduleId}_questions`, []);
+    const confidence = getKV(`${moduleId}_confidence`, {});
+    const q1Index = getKV(`q1_index`);
+    const q1Answer = getKV(`q1_answer`);
+    const q2Index = getKV(`q2_index`);
+    const q2Answer = getKV(`q2_answer`);
+    const reflection = getKV(`${moduleId}_reflection`);
+
+    function renderMath(content) {
+      return content.replace(/\$(.*?)\$/g, (_, expr) => `\\(${expr}\\)`);
     }
 
-    // Local fallback store API (matches the "survey" bag pattern used on other pages)
-    function readBag() {
-      try { return JSON.parse(localStorage.getItem('survey') || '{}'); }
-      catch { return {}; }
-    }
-    function fallbackGetKV(key, defVal=null) {
-      const bag = readBag();
-      return key in bag ? bag[key] : defVal;
+    function addSection(title, content) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'section';
+      wrapper.innerHTML = `<h3>${title}</h3>${content}`;
+      summaryDiv.appendChild(wrapper);
     }
 
-    const safeGetKV = (key, defVal) => (getKV ? getKV(key, defVal) : fallbackGetKV(key, defVal));
-    const bag = getAll ? getAll() : readBag();
-
-    // ---- Build payload from stored answers ----
-    // Name: earlier pages stored { first, last } under key "student"
-    const student = safeGetKV('student', { first:'', last:'' });
-
-    function packModule(n) {
-      const p = `m${n}`;
-      const q1 = safeGetKV(`${p}_q1`, null);  // {id,text,answer,correct,timeSpent}
-      const q2 = safeGetKV(`${p}_q2`, null);
-      return {
-        rank:       safeGetKV(`${p}_ranking`, []),
-        confidence: safeGetKV(`${p}_confidence`, {}),
-        q1: q1 ? { id: q1.id, answer: q1.answer ?? "", correct: q1.correct ?? null, timeSpent: q1.timeSpent ?? null } : null,
-        q2: q2 ? { id: q2.id, answer: q2.answer ?? "", correct: q2.correct ?? null, timeSpent: q2.timeSpent ?? null } : null,
-        reflection: safeGetKV(`${p}_reflection`, null)
-      };
+    if (questions.length && ranked.length) {
+      const list = ranked.map((id, i) => {
+        const q = questions.find(q => q.id === id);
+        return `<div class="question-block">
+          <strong>#${i + 1}:</strong> ${renderMath(q.label || q.id)}
+        </div>`;
+      }).join('');
+      addSection('Your Ranked Questions (Easiest → Hardest)', list);
     }
 
-    const payload = {
-      student: { first: student.first || '', last: student.last || '' },
-      struggleReasons: safeGetKV('struggle_reasons', []),
-      m1: packModule(1),
-      m2: packModule(2),
-      m3: packModule(3),
-      m4: packModule(4),
-      _submittedAt: new Date().toISOString()
-    };
-
-    // ---- Submit once to Apps Script ----
-    const statusEl = document.getElementById('status');
-    const errEl = document.getElementById('errorMsg');
-
-    async function submitOnce() {
-      try {
-        statusEl.textContent = 'Submitting your responses…';
-
-        const res = await fetch('YOUR_WEB_APP_URL_HERE', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          // mode: 'cors' // uncomment if you need explicit CORS mode
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(()=> '');
-          throw new Error(`HTTP ${res.status} ${res.statusText} ${text ? '- ' + text : ''}`);
-        }
-        // If your GAS returns JSON, you can read it:
-        // const data = await res.json().catch(()=> ({}));
-
-        statusEl.textContent = 'Submitted! Your responses have been recorded.';
-        errEl.classList.add('hidden');
-
-        // Clear local answers after a successful submit (optional)
-        try { localStorage.removeItem('survey'); } catch {}
-
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'We couldn’t submit your responses.';
-        errEl.textContent = 'Please check your connection and try again. Your answers are safe on this device.';
-        errEl.classList.remove('hidden');
-      }
+    if (confidence && Object.keys(confidence).length) {
+      const list = ranked.map((id, i) => {
+        const q = questions.find(q => q.id === id);
+        const val = confidence[id] === 3 ? '😄 Very' :
+                    confidence[id] === 2 ? '😐 Somewhat' :
+                    '😕 Not confident';
+        return `<div class="question-block">
+          <strong>#${i + 1}:</strong> ${renderMath(q.label || q.id)}<br/>
+          Confidence: ${val}
+        </div>`;
+      }).join('');
+      addSection('Your Confidence Ratings', list);
     }
 
-    // Auto-submit on load (so the user lands and it sends)
-    submitOnce();
+    if (q1Index !== null && questions[q1Index]) {
+      const q1 = questions[q1Index];
+      addSection('Question 1 Answer', `
+        <div class="question-block">
+          ${renderMath(q1.label || q1.id)}<br/>
+          <strong>Your Answer:</strong> ${q1Answer ?? '(no answer)'}
+        </div>`);
+    }
 
-    // ---- Buttons ----
-    document.getElementById('restartBtn').addEventListener('click', () => {
-      // optional: keep results even if submit failed; comment out next line if you want to always clear
-      // try { localStorage.removeItem('survey'); } catch {}
-      window.location.href = 'index.html';
+    if (q2Index !== null && questions[q2Index]) {
+      const q2 = questions[q2Index];
+      addSection('Question 2 Answer', `
+        <div class="question-block">
+          ${renderMath(q2.label || q2.id)}<br/>
+          <strong>Your Answer:</strong> ${q2Answer ?? '(no answer)'}
+        </div>`);
+    }
+
+    if (reflection?.difficulty) {
+      addSection('Reflection', `
+        <div class="question-block">
+          <strong>Difficulty:</strong> ${reflection.difficulty}<br/>
+          <strong>Comment:</strong> ${reflection.explain || '(no explanation)'}
+        </div>`);
+    }
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      // TODO: Handle submission logic (e.g., send to Google Sheets or backend)
+      alert("Your answers have been submitted! (Functionality coming soon)");
     });
-    document.getElementById('exitBtn').addEventListener('click', () => {
-      // Customize this as needed (home page, LMS, etc.)
-      window.location.href = 'https://example.com/';
-    });
+
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise([summaryDiv]).catch(() => {});
+    }
   </script>
 </body>
 </html>
