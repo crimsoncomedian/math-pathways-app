@@ -142,14 +142,13 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:30%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:40%"></i></div>
 
   <main class="container" role="main">
     <h2>Rank the Questions</h2>
     <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
-    <p class="hint" id="hint">Your order helps pick the first practice question.</p>
+    <p class="hint">Your order helps choose the best first practice question.</p>
 
-    <div id="notice" class="alert" style="display:none"></div>
     <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
 
     <div class="actions">
@@ -158,20 +157,21 @@
   </main>
 
   <script type="module">
-    // Sample questions (replace or import from your real source)
-    const questionBank = [
-      "What is the derivative of $x^2$?",
-      "Solve for $x$: $2x + 3 = 7$",
-      "What is the integral of $\\sin(x)$?",
-      "Explain the Pythagorean Theorem.",
-      "Factor the quadratic: $x^2 - 5x + 6$"
+    const questions = [
+      { id: 'M1_Easy', label: 'Simplify $3y + 5y - 2$.' },
+      { id: 'M1_Basic', label: 'Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$.' },
+      { id: 'M1_Moderate', label: 'You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours.' },
+      { id: 'M1_Challenging', label: 'Simplify $4x - 2(3x - 1) + 5$.' },
+      { id: 'M1_Advanced', label: 'Write $4(a-2)$ with no multiplication.' },
     ];
+
+    // Shuffle the questions
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
 
     const list = document.getElementById("rankList");
     const btn = document.getElementById("continueBtn");
 
-    // Initial order = 0, 1, 2...
-    let currentOrder = [...Array(questionBank.length).keys()];
+    let currentOrder = [...Array(shuffled.length).keys()];
 
     function renderList() {
       list.innerHTML = "";
@@ -183,7 +183,7 @@
 
         li.innerHTML = `
           <span class="badge">${rank + 1}</span>
-          <span class="label">${questionBank[i]}</span>
+          <span class="label">${shuffled[i].label}</span>
           <span class="handle">☰</span>
         `;
 
@@ -219,18 +219,14 @@
         if (newIndex !== draggingIndex) {
           swap(draggingIndex, newIndex);
           renderList();
-          handleDragEvents(); // Reattach
+          handleDragEvents(); // Rebind
         }
       });
     }
 
     btn.addEventListener("click", () => {
-      // Save both the ranked indices and the full text order
-      const orderedQuestions = currentOrder.map(i => questionBank[i]);
-
-      localStorage.setItem("rankOrder", JSON.stringify(currentOrder));
-      localStorage.setItem("orderedQuestions", JSON.stringify(orderedQuestions));
-
+      const ordered = currentOrder.map(i => shuffled[i]);
+      localStorage.setItem("orderedQuestions", JSON.stringify(ordered));
       window.location.href = "confidence.html";
     });
 
