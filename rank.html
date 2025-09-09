@@ -141,4 +141,83 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i style="width:
+  <div class="progress"><i style="width: 40%"></i></div>
+
+  <main class="container" role="main">
+    <h2>Rank the Questions</h2>
+    <p class="sub">Use the arrows to move questions up or down. Easiest should be on top.</p>
+
+    <ul id="rankList" class="rank-list"></ul>
+
+    <div class="actions">
+      <button id="continueBtn" class="btn" type="button">Continue</button>
+    </div>
+  </main>
+
+  <script type="module">
+    const questions = [
+      { id: 'M1_Easy', label: 'Simplify $3y + 5y - 2$.' },
+      { id: 'M1_Basic', label: 'Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$.' },
+      { id: 'M1_Moderate', label: 'You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours.' },
+      { id: 'M1_Challenging', label: 'Simplify $4x - 2(3x - 1) + 5$.' },
+      { id: 'M1_Advanced', label: 'Write $4(a-2)$ with no multiplication.' },
+    ];
+
+    // Shuffle questions
+    let currentOrder = [...questions].sort(() => Math.random() - 0.5);
+
+    const list = document.getElementById("rankList");
+    const btn = document.getElementById("continueBtn");
+
+    function renderList() {
+      list.innerHTML = "";
+
+      currentOrder.forEach((q, index) => {
+        const li = document.createElement("li");
+        li.className = "rank-item";
+
+        const label = document.createElement("div");
+        label.className = "question-label";
+        label.innerHTML = `<strong>${index + 1}.</strong> ${q.label}`;
+
+        const controls = document.createElement("div");
+        controls.className = "rank-controls";
+
+        const upBtn = document.createElement("button");
+        upBtn.className = "arrow-btn";
+        upBtn.textContent = "⬆️";
+        upBtn.disabled = index === 0;
+        upBtn.addEventListener("click", () => moveItem(index, index - 1));
+
+        const downBtn = document.createElement("button");
+        downBtn.className = "arrow-btn";
+        downBtn.textContent = "⬇️";
+        downBtn.disabled = index === currentOrder.length - 1;
+        downBtn.addEventListener("click", () => moveItem(index, index + 1));
+
+        controls.appendChild(upBtn);
+        controls.appendChild(downBtn);
+
+        li.appendChild(label);
+        li.appendChild(controls);
+        list.appendChild(li);
+      });
+
+      MathJax.typesetPromise(); // Render LaTeX
+    }
+
+    function moveItem(from, to) {
+      const item = currentOrder.splice(from, 1)[0];
+      currentOrder.splice(to, 0, item);
+      renderList();
+    }
+
+    btn.addEventListener("click", () => {
+      localStorage.setItem("orderedQuestions", JSON.stringify(currentOrder));
+      window.location.href = "confidence.html";
+    });
+
+    renderList();
+  </script>
+</body>
+</html>
