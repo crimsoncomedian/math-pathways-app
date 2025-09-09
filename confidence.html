@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rate Your Confidence</title>
+  <title>Confidence Rating</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background-color: #f9f9f9;
+      font-family: system-ui, sans-serif;
+      background: #f9f9f9;
       margin: 0;
       padding: 2rem;
     }
@@ -40,183 +41,142 @@
       margin-bottom: 1rem;
     }
 
-    .sub {
-      font-size: 1rem;
-      color: #444;
-      margin-bottom: 2rem;
-    }
-
-    .question-block {
-      margin-bottom: 2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #ddd;
-    }
-
-    .question-text {
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .emoji-row {
+    .question {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 1rem;
+      padding: 1rem 0.5rem;
+      border-bottom: 1px solid #ddd;
+      flex-wrap: wrap;
     }
 
-    .emoji-btn {
+    .label {
+      font-size: 1.1rem;
+      flex: 1 1 60%;
+    }
+
+    .emojis {
+      display: flex;
+      gap: 0.5rem;
+      flex: 1 1 35%;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .emojis button {
       font-size: 1.5rem;
-      padding: 0.5rem 0.75rem;
+      background: none;
       border: 2px solid transparent;
       border-radius: 8px;
-      background: #f3f4f6;
       cursor: pointer;
-      transition: all 0.2s ease;
+      padding: 0.3rem 0.5rem;
+      transition: 0.2s ease-in-out;
     }
 
-    .emoji-btn:hover {
-      background: #e0e7ff;
+    .emojis button.selected {
+      border-color: #4f46e5;
+      background: #eef;
     }
 
-    .btn {
-      display: block;
-      margin: 2rem auto 0;
-      padding: 0.75rem 2rem;
-      background: #4f46e5;
+    #continue {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #ccc;
       color: white;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-
-    .btn:disabled {
-      background: #ccc;
       cursor: not-allowed;
+      transition: background 0.2s ease;
+      display: block;
+      width: 100%;
     }
 
-    .btn.active {
+    #continue.enabled {
       background: #4f46e5;
+      cursor: pointer;
     }
 
-    .alert {
-      background: #fff3cd;
-      border: 1px solid #ffe58f;
-      color: #8a6d3b;
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin-bottom: 1rem;
-    }
-
-    @media (max-width: 480px) {
-      body {
-        padding: 1rem;
+    @media (max-width: 600px) {
+      .question {
+        flex-direction: column;
+        align-items: flex-start;
       }
-
-      main.container {
-        padding: 1.5rem 1rem;
-      }
-
-      .btn {
-        width: 100%;
+      .emojis {
+        justify-content: flex-start;
+        margin-top: 0.5rem;
       }
     }
   </style>
-
-  <!-- MathJax for LaTeX rendering -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
+
 <body>
-  <div class="progress"><i style="width: 50%"></i></div>
+  <div class="progress"><i id="progressBar" style="width: 60%"></i></div>
 
-  <main class="container">
-    <h2>Rate Your Confidence</h2>
-    <p class="sub">Tap one emoji per question to rate how confident you feel before solving it.</p>
-
-    <div id="questionsContainer"></div>
-
-    <button id="continueBtn" class="btn" disabled>Continue</button>
+  <main class="container" role="main">
+    <h2>How confident are you about each question?</h2>
+    <div id="questionList"></div>
+    <button id="continue" disabled>Continue</button>
   </main>
 
   <script type="module">
+    const questionList = document.getElementById('questionList');
+    const continueBtn = document.getElementById('continue');
+
     const orderedQuestions = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
-    const container = document.getElementById("questionsContainer");
-    const continueBtn = document.getElementById("continueBtn");
-
-    const emojis = [
-      { value: 1, icon: "😰", label: "Not confident" },
-      { value: 2, icon: "😐", label: "Somewhat" },
-      { value: 3, icon: "🙂", label: "Mostly" },
-      { value: 4, icon: "😎", label: "Very confident" },
-    ];
-
     const confidence = {};
 
-    function renderQuestions() {
-      if (!orderedQuestions.length) {
-        container.innerHTML = `<p class="alert">No questions found. Please go back and rank them first.</p>`;
-        continueBtn.disabled = true;
-        return;
-      }
+    const emojis = [
+      { emoji: '😕', label: 'Not Confident', value: 1 },
+      { emoji: '😐', label: 'Somewhat', value: 2 },
+      { emoji: '😄', label: 'Very', value: 3 }
+    ];
 
-      orderedQuestions.forEach((q, index) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "question-block";
+    orderedQuestions.forEach(q => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'question';
 
-        const qText = document.createElement("div");
-        qText.className = "question-text";
-        qText.innerHTML = q.label;
+      const label = document.createElement('div');
+      label.className = 'label math';
+      label.innerHTML = q?.label || q.id;
 
-        const emojiRow = document.createElement("div");
-        emojiRow.className = "emoji-row";
+      const emojiContainer = document.createElement('div');
+      emojiContainer.className = 'emojis';
 
-        emojis.forEach(e => {
-          const btn = document.createElement("button");
-          btn.className = "emoji-btn";
-          btn.textContent = e.icon;
-          btn.title = e.label;
-          btn.dataset.value = e.value;
+      emojis.forEach(({ emoji, value }) => {
+        const btn = document.createElement('button');
+        btn.textContent = emoji;
+        btn.title = emoji;
 
-          btn.addEventListener("click", () => {
-            confidence[index] = e.value;
-            highlightSelection(emojiRow, e.value);
-            checkCompletion();
-          });
+        btn.addEventListener('click', () => {
+          emojiContainer.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          confidence[q.id] = value;
 
-          emojiRow.appendChild(btn);
+          const allAnswered = orderedQuestions.every(q => confidence[q.id] !== undefined);
+          continueBtn.disabled = !allAnswered;
+          continueBtn.classList.toggle('enabled', allAnswered);
         });
 
-        wrapper.appendChild(qText);
-        wrapper.appendChild(emojiRow);
-        container.appendChild(wrapper);
+        emojiContainer.appendChild(btn);
       });
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(emojiContainer);
+      questionList.appendChild(wrapper);
+    });
+
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise([questionList]).catch(() => {});
     }
 
-    function highlightSelection(row, selectedValue) {
-      [...row.children].forEach(btn => {
-        btn.style.opacity = btn.dataset.value == selectedValue ? "1" : "0.5";
-      });
-    }
+    continueBtn.addEventListener('click', () => {
+      if (continueBtn.disabled) return;
 
-    function checkCompletion() {
-      const total = orderedQuestions.length;
-      const completed = Object.keys(confidence).length;
-
-      continueBtn.disabled = completed < total;
-      continueBtn.classList.toggle("active", completed === total);
-    }
-
-    continueBtn.addEventListener("click", () => {
       localStorage.setItem("confidence", JSON.stringify(confidence));
       window.location.href = "q1.html";
     });
-
-    renderQuestions();
   </script>
 </body>
 </html>
