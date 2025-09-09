@@ -40,7 +40,7 @@
       margin-bottom: 0.5rem;
     }
 
-    .sub, .hint {
+    .sub {
       font-size: 1rem;
       color: #444;
       margin-bottom: 1rem;
@@ -71,18 +71,24 @@
 
     .rank-controls {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 0.25rem;
     }
 
     .arrow-btn {
-      background: #e0e7ff;
-      border: none;
+      background: transparent;
+      border: 1px solid #ccc;
       border-radius: 6px;
       cursor: pointer;
       padding: 0.25rem 0.5rem;
-      font-size: 1rem;
+      font-size: 1.25rem;
       line-height: 1;
+      color: #333;
+      transition: background 0.2s;
+    }
+
+    .arrow-btn:hover:not(:disabled) {
+      background: #f3f4f6;
     }
 
     .arrow-btn:disabled {
@@ -185,13 +191,13 @@
 
         const upBtn = document.createElement("button");
         upBtn.className = "arrow-btn";
-        upBtn.textContent = "⬆️";
+        upBtn.textContent = "▲";
         upBtn.disabled = index === 0;
         upBtn.addEventListener("click", () => moveItem(index, index - 1));
 
         const downBtn = document.createElement("button");
         downBtn.className = "arrow-btn";
-        downBtn.textContent = "⬇️";
+        downBtn.textContent = "▼";
         downBtn.disabled = index === currentOrder.length - 1;
         downBtn.addEventListener("click", () => moveItem(index, index + 1));
 
