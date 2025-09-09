@@ -2,228 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Rank the 5 Questions</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <title>Rank the Questions</title>
+  <link rel="stylesheet" href="css/style.css" />
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-      background: #f9f9f9;
-      margin: 0;
-      padding: 2rem;
-    }
-
-    .progress {
-      background: #eee;
-      height: 6px;
-      margin: 0 0 1.5rem 0;
-    }
-
-    .progress i {
-      display: block;
-      background: #4f46e5;
-      height: 100%;
-      transition: width 0.3s;
-    }
-
-    main.container {
-      background: white;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 2rem 2.5rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-    }
-
-    h2 {
-      font-size: 1.75rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .sub {
-      font-size: 1rem;
-      color: #444;
-      margin-bottom: 1rem;
-    }
-
-    .rank-list {
+    .question-list {
       list-style: none;
       padding: 0;
-      margin: 1.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
-
-    .rank-item {
+    .question-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: .75rem 1rem;
-      margin: .5rem 0;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
       background: #fff;
-      box-shadow: 0 4px 8px rgba(0,0,0,.04);
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      font-size: 1.1rem;
     }
-
-    .question-label {
-      flex: 1;
-      margin-right: 1rem;
-    }
-
-    .rank-controls {
+    .question-controls {
       display: flex;
-      flex-direction: row;
-      gap: 0.25rem;
+      flex-direction: column;
+      gap: 0.3rem;
     }
-
-    .arrow-btn {
-      background: transparent;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      cursor: pointer;
-      padding: 0.25rem 0.5rem;
-      font-size: 1.25rem;
-      line-height: 1;
-      color: #333;
-      transition: background 0.2s;
-    }
-
-    .arrow-btn:hover:not(:disabled) {
-      background: #f3f4f6;
-    }
-
-    .arrow-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-    }
-
-    .actions {
-      display: flex;
-      justify-content: center;
-      margin-top: 1.5rem;
-    }
-
-    .btn {
-      padding: 0.75rem 1.5rem;
-      background: #4f46e5;
-      color: white;
+    .control-btn {
+      background: none;
       border: none;
-      border-radius: 8px;
-      font-size: 1rem;
+      font-size: 1.2rem;
       cursor: pointer;
-      transition: background 0.2s ease;
     }
-
-    .btn:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 480px) {
-      body {
-        padding: 1rem;
-      }
-
-      main.container {
-        padding: 1.5rem 1rem;
-      }
-
-      .btn {
-        width: 100%;
-      }
-
-      .rank-controls {
-        flex-direction: row;
-      }
+    .control-btn:hover {
+      color: var(--primary);
     }
   </style>
-
-  <!-- MathJax for LaTeX rendering -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i style="width: 40%"></i></div>
+  <div class="progress"><i id="progressBar" style="width:20%"></i></div>
 
   <main class="container" role="main">
     <h2>Rank the Questions</h2>
-    <p class="sub">Use the arrows to move questions up or down. Easiest should be on top.</p>
+    <p class="sub">Use the arrows to rank from easiest (top) to hardest (bottom). Your order helps pick the first practice question.</p>
 
-    <ul id="rankList" class="rank-list"></ul>
+    <ul id="questionList" class="question-list"></ul>
 
     <div class="actions">
-      <button id="continueBtn" class="btn" type="button">Continue</button>
+      <button id="continueBtn" class="btn">Continue</button>
     </div>
   </main>
 
   <script type="module">
-    const questions = [
-      { id: 'M1_Easy', label: 'Simplify $3y + 5y - 2$.' },
-      { id: 'M1_Basic', label: 'Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$.' },
-      { id: 'M1_Moderate', label: 'You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours.' },
-      { id: 'M1_Challenging', label: 'Simplify $4x - 2(3x - 1) + 5$.' },
-      { id: 'M1_Advanced', label: 'Write $4(a-2)$ with no multiplication.' },
+    import { setKV } from './js/app.js';
+
+    const QUESTIONS = [
+      { id: "M1_Easy", label: "Simplify $3y + 5y - 2$." },
+      { id: "M1_Basic", label: "Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$." },
+      { id: "M1_Moderate", label: "You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours." },
+      { id: "M1_Challenging", label: "Simplify $4x - 2(3x - 1) + 5$." },
+      { id: "M1_Advanced", label: "Write $4(a-2)$ with no multiplication." }
     ];
 
-    // Shuffle questions
-    let currentOrder = [...questions].sort(() => Math.random() - 0.5);
+    // Save full question list for later access (✅ this is the key fix)
+    setKV('M1_questions', QUESTIONS);
 
-    const list = document.getElementById("rankList");
-    const btn = document.getElementById("continueBtn");
+    // Shuffle for display
+    const shuffled = QUESTIONS.slice().sort(() => Math.random() - 0.5);
+    const questionList = document.getElementById('questionList');
 
     function renderList() {
-      list.innerHTML = "";
-
-      currentOrder.forEach((q, index) => {
-        const li = document.createElement("li");
-        li.className = "rank-item";
-
-        const label = document.createElement("div");
-        label.className = "question-label";
-        label.innerHTML = `<strong>${index + 1}.</strong> ${q.label}`;
-
-        const controls = document.createElement("div");
-        controls.className = "rank-controls";
-
-        const upBtn = document.createElement("button");
-        upBtn.className = "arrow-btn";
-        upBtn.textContent = "▲";
-        upBtn.disabled = index === 0;
-        upBtn.addEventListener("click", () => moveItem(index, index - 1));
-
-        const downBtn = document.createElement("button");
-        downBtn.className = "arrow-btn";
-        downBtn.textContent = "▼";
-        downBtn.disabled = index === currentOrder.length - 1;
-        downBtn.addEventListener("click", () => moveItem(index, index + 1));
-
-        controls.appendChild(upBtn);
-        controls.appendChild(downBtn);
-
-        li.appendChild(label);
-        li.appendChild(controls);
-        list.appendChild(li);
+      questionList.innerHTML = '';
+      shuffled.forEach((q, index) => {
+        const li = document.createElement('li');
+        li.className = 'question-item';
+        li.dataset.id = q.id;
+        li.innerHTML = `
+          <span>${q.label}</span>
+          <div class="question-controls">
+            <button class="control-btn" onclick="moveUp(${index})">&#9650;</button>
+            <button class="control-btn" onclick="moveDown(${index})">&#9660;</button>
+          </div>
+        `;
+        questionList.appendChild(li);
+        if (window.MathJax) MathJax.typesetPromise([li]);
       });
-
-      MathJax.typesetPromise(); // Render LaTeX
     }
 
-    function moveItem(from, to) {
-      const item = currentOrder.splice(from, 1)[0];
-      currentOrder.splice(to, 0, item);
-      renderList();
-    }
-
-    btn.addEventListener("click", () => {
-      localStorage.setItem("orderedQuestions", JSON.stringify(currentOrder));
-      window.location.href = "confidence.html";
-    });
+    window.moveUp = (i) => {
+      if (i > 0) {
+        [shuffled[i], shuffled[i - 1]] = [shuffled[i - 1], shuffled[i]];
+        renderList();
+      }
+    };
+    window.moveDown = (i) => {
+      if (i < shuffled.length - 1) {
+        [shuffled[i], shuffled[i + 1]] = [shuffled[i + 1], shuffled[i]];
+        renderList();
+      }
+    };
 
     renderList();
+
+    document.getElementById('continueBtn').addEventListener('click', () => {
+      setKV('M1_rank', shuffled.map(q => q.id));
+      window.location.assign('confidence.html');
+    });
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 </body>
 </html>
