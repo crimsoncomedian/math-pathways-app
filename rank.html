@@ -1,165 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Rank the Questions</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <title>Rank the 5 Questions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
       background: #f9f9f9;
       margin: 0;
+      padding: 2rem;
     }
 
     .progress {
-      height: 4px;
       background: #eee;
+      height: 6px;
+      margin: 0 0 1.5rem 0;
     }
 
-    #progressBar {
+    .progress i {
       display: block;
-      height: 4px;
-      background: #6366f1;
-      width: 20%;
+      background: #4f46e5;
+      height: 100%;
+      transition: width 0.3s;
     }
 
-    main {
-      max-width: 700px;
-      margin: 2rem auto;
+    main.container {
       background: white;
-      padding: 2rem;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 2.5rem;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
     h2 {
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       margin-bottom: 0.5rem;
     }
 
-    .sub {
-      color: #555;
-      margin-bottom: 1.5rem;
-    }
-
-    .question {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      background: #f1f5f9;
-      border-radius: 8px;
+    .sub, .hint {
+      font-size: 1rem;
+      color: #444;
       margin-bottom: 1rem;
     }
 
-    .arrows {
+    .rank-list {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0;
+    }
+
+    .rank-item {
       display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
+      align-items: center;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      margin: .5rem 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,.04);
     }
 
-    .arrow {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
+    .badge {
+      min-width: 2ch;
+      text-align: right;
+      font-weight: 700;
+      opacity: .7;
     }
 
-    .arrow:disabled {
-      opacity: 0.3;
-      cursor: default;
+    .label {
+      flex: 1;
+    }
+
+    .handle {
+      margin-left: auto;
+      cursor: grab;
+      font-size: 1.5rem;
+      opacity: 0.4;
+    }
+
+    .dragging {
+      opacity: .6;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.5rem;
     }
 
     .btn {
-      display: block;
-      margin: 2rem auto 0;
-      background: #6366f1;
+      padding: 0.75rem 1.5rem;
+      background: #4f46e5;
       color: white;
       border: none;
-      padding: 0.75rem 2rem;
-      font-size: 1rem;
       border-radius: 8px;
+      font-size: 1rem;
       cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .alert {
+      background: #fff3cd;
+      border: 1px solid #ffe58f;
+      color: #8a6d3b;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
+      }
+
+      main.container {
+        padding: 1.5rem 1rem;
+      }
+
+      .btn {
+        width: 100%;
+      }
     }
   </style>
 
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <!-- MathJax for LaTeX rendering -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
-
 <body>
-  <div class="progress"><i id="progressBar"></i></div>
+  <div class="progress"><i id="progressBar" style="width:30%"></i></div>
 
-  <main>
+  <main class="container" role="main">
     <h2>Rank the Questions</h2>
-    <p class="sub">Use the arrows to rank from easiest (top) to hardest (bottom). Your order helps pick the first practice question.</p>
+    <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
+    <p class="hint" id="hint">Your order helps pick the first practice question.</p>
 
-    <div id="questionList"></div>
-    <button id="continueBtn" class="btn">Continue</button>
+    <div id="notice" class="alert" style="display:none"></div>
+    <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
+
+    <div class="actions">
+      <button id="continueBtn" class="btn" type="button">Continue</button>
+    </div>
   </main>
 
   <script type="module">
-    import { setKV, setProgress } from './js/app.js';
-    setProgress(20);
-
-    const questions = [
-      { id: "M1_Easy", label: "Simplify $3y + 5y - 2$." },
-      { id: "M1_Basic", label: "Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$." },
-      { id: "M1_Moderate", label: "You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours." },
-      { id: "M1_Challenging", label: "Simplify $4x - 2(3x - 1) + 5$." },
-      { id: "M1_Advanced", label: "Write $4(a-2)$ with no multiplication." }
+    const questionBank = [
+      "Simplify $3y + 5y - 2$.",
+      "Evaluate $m^2 - \\dfrac{12}{m}$, when $m = 4$.",
+      "You earn $35$ per hour tutoring. You already have $540$ in your savings. Write an expression for your total money after $h$ hours.",
+      "Simplify $4x - 2(3x - 1) + 5$.",
+      "Write $4(a - 2)$ with no multiplication."
     ];
 
-    const shuffled = questions.sort(() => Math.random() - 0.5);
-    const container = document.getElementById('questionList');
+    const list = document.getElementById("rankList");
+    const btn = document.getElementById("continueBtn");
 
-    function render() {
-      container.innerHTML = '';
-      shuffled.forEach((q, i) => {
-        const div = document.createElement('div');
-        div.className = 'question';
+    let currentOrder = [...Array(questionBank.length).keys()];
 
-        const span = document.createElement('span');
-        span.innerHTML = q.label;
+    function renderList() {
+      list.innerHTML = "";
+      currentOrder.forEach((i, rank) => {
+        const li = document.createElement("li");
+        li.className = "rank-item";
+        li.setAttribute("draggable", "true");
+        li.dataset.index = i;
 
-        const arrows = document.createElement('div');
-        arrows.className = 'arrows';
+        li.innerHTML = `
+          <span class="badge">${rank + 1}</span>
+          <span class="label">${questionBank[i]}</span>
+          <span class="handle">☰</span>
+        `;
 
-        const up = document.createElement('button');
-        up.className = 'arrow';
-        up.innerHTML = '&#9650;'; // ▲
-        up.disabled = i === 0;
-        up.onclick = () => {
-          [shuffled[i], shuffled[i - 1]] = [shuffled[i - 1], shuffled[i]];
-          render();
-        };
-
-        const down = document.createElement('button');
-        down.className = 'arrow';
-        down.innerHTML = '&#9660;'; // ▼
-        down.disabled = i === shuffled.length - 1;
-        down.onclick = () => {
-          [shuffled[i], shuffled[i + 1]] = [shuffled[i + 1], shuffled[i]];
-          render();
-        };
-
-        arrows.appendChild(up);
-        arrows.appendChild(down);
-        div.appendChild(span);
-        div.appendChild(arrows);
-        container.appendChild(div);
+        list.appendChild(li);
       });
 
-      if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+      if (window.MathJax?.typesetPromise) {
+        MathJax.typesetPromise([list]).catch(() => {});
+      }
     }
 
-    render();
+    function swap(fromIndex, toIndex) {
+      const item = currentOrder.splice(fromIndex, 1)[0];
+      currentOrder.splice(toIndex, 0, item);
+    }
 
-    document.getElementById('continueBtn').addEventListener('click', () => {
-      setKV('M1_rank', shuffled.map(q => q.id));
-      window.location.href = 'confidence.html';
+    function handleDragEvents() {
+      let draggingIndex = null;
+
+      list.addEventListener("dragstart", (e) => {
+        draggingIndex = [...list.children].indexOf(e.target);
+        e.target.classList.add("dragging");
+      });
+
+      list.addEventListener("dragend", (e) => {
+        e.target.classList.remove("dragging");
+      });
+
+      list.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const afterElement = [...list.children].find(child => {
+          const box = child.getBoundingClientRect();
+          return e.clientY < box.top + box.height / 2;
+        });
+        const newIndex = afterElement ? [...list.children].indexOf(afterElement) : list.children.length - 1;
+
+        if (newIndex !== draggingIndex) {
+          swap(draggingIndex, newIndex);
+          renderList();
+          handleDragEvents();
+        }
+      });
+    }
+
+    btn.addEventListener("click", () => {
+      const orderedQuestions = currentOrder.map(i => ({
+        id: `Q${i}`,
+        label: questionBank[i]
+      }));
+
+      localStorage.setItem("orderedQuestions", JSON.stringify(orderedQuestions));
+      window.location.href = "confidence.html";
     });
+
+    renderList();
+    handleDragEvents();
   </script>
 </body>
 </html>
