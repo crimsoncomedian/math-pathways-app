@@ -38,7 +38,20 @@
 
     h2 {
       font-size: 1.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .emoji-key {
+      font-size: 1rem;
+      color: #444;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .emoji-key span {
+      display: inline-block;
     }
 
     .question {
@@ -115,7 +128,13 @@
   <div class="progress"><i id="progressBar" style="width: 60%"></i></div>
 
   <main class="container" role="main">
-    <h2>How confident are you about each question?</h2>
+    <h2>How confident are you that you could solve each question?</h2>
+    <div class="emoji-key" aria-hidden="true">
+      <strong>Confidence Key:</strong>
+      <span>😕 Not Confident</span>
+      <span>😐 Somewhat</span>
+      <span>😄 Very</span>
+    </div>
     <div id="questionList"></div>
     <button id="continue" disabled>Continue</button>
   </main>
