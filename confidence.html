@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Rank the 5 Questions</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rate Your Confidence</title>
 
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-      background: #f9f9f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f9f9f9;
       margin: 0;
       padding: 2rem;
     }
@@ -16,7 +16,7 @@
     .progress {
       background: #eee;
       height: 6px;
-      margin: 0 0 1.5rem 0;
+      margin-bottom: 1.5rem;
     }
 
     .progress i {
@@ -37,63 +37,49 @@
 
     h2 {
       font-size: 1.75rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .sub, .hint {
-      font-size: 1rem;
-      color: #444;
       margin-bottom: 1rem;
     }
 
-    .rank-list {
-      list-style: none;
-      padding: 0;
-      margin: 1.5rem 0;
+    .sub {
+      font-size: 1rem;
+      color: #444;
+      margin-bottom: 2rem;
     }
 
-    .rank-item {
+    .question-block {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .question-text {
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .emoji-row {
       display: flex;
-      align-items: center;
-      gap: .75rem;
-      padding: .75rem 1rem;
-      margin: .5rem 0;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      background: #fff;
-      box-shadow: 0 4px 8px rgba(0,0,0,.04);
+      gap: 1rem;
     }
 
-    .badge {
-      min-width: 2ch;
-      text-align: right;
-      font-weight: 700;
-      opacity: .7;
-    }
-
-    .label {
-      flex: 1;
-    }
-
-    .handle {
-      margin-left: auto;
-      cursor: grab;
+    .emoji-btn {
       font-size: 1.5rem;
-      opacity: 0.4;
+      padding: 0.5rem 0.75rem;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #f3f4f6;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .dragging {
-      opacity: .6;
-    }
-
-    .actions {
-      display: flex;
-      justify-content: center;
-      margin-top: 1.5rem;
+    .emoji-btn:hover {
+      background: #e0e7ff;
     }
 
     .btn {
-      padding: 0.75rem 1.5rem;
+      display: block;
+      margin: 2rem auto 0;
+      padding: 0.75rem 2rem;
       background: #4f46e5;
       color: white;
       border: none;
@@ -104,8 +90,12 @@
     }
 
     .btn:disabled {
-      background: #aaa;
+      background: #ccc;
       cursor: not-allowed;
+    }
+
+    .btn.active {
+      background: #4f46e5;
     }
 
     .alert {
@@ -114,7 +104,7 @@
       color: #8a6d3b;
       padding: 12px 14px;
       border-radius: 10px;
-      margin: 12px 0;
+      margin-bottom: 1rem;
     }
 
     @media (max-width: 480px) {
@@ -142,100 +132,91 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:30%"></i></div>
+  <div class="progress"><i style="width: 50%"></i></div>
 
-  <main class="container" role="main">
-    <h2>Rank the Questions</h2>
-    <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
-    <p class="hint" id="hint">Your order helps pick the first practice question.</p>
+  <main class="container">
+    <h2>Rate Your Confidence</h2>
+    <p class="sub">Tap one emoji per question to rate how confident you feel before solving it.</p>
 
-    <div id="notice" class="alert" style="display:none"></div>
-    <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
+    <div id="questionsContainer"></div>
 
-    <div class="actions">
-      <button id="continueBtn" class="btn" type="button">Continue</button>
-    </div>
+    <button id="continueBtn" class="btn" disabled>Continue</button>
   </main>
 
   <script type="module">
-    // Sample questions (replace or import from your real source)
-    const questionBank = [
-      "What is the derivative of $x^2$?",
-      "Solve for $x$: $2x + 3 = 7$",
-      "What is the integral of $\\sin(x)$?",
-      "Explain the Pythagorean Theorem.",
-      "Factor the quadratic: $x^2 - 5x + 6$"
+    const orderedQuestions = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
+    const container = document.getElementById("questionsContainer");
+    const continueBtn = document.getElementById("continueBtn");
+
+    const emojis = [
+      { value: 1, icon: "😰", label: "Not confident" },
+      { value: 2, icon: "😐", label: "Somewhat" },
+      { value: 3, icon: "🙂", label: "Mostly" },
+      { value: 4, icon: "😎", label: "Very confident" },
     ];
 
-    const list = document.getElementById("rankList");
-    const btn = document.getElementById("continueBtn");
+    const confidence = {};
 
-    // Initial order = 0, 1, 2...
-    let currentOrder = [...Array(questionBank.length).keys()];
+    function renderQuestions() {
+      if (!orderedQuestions.length) {
+        container.innerHTML = `<p class="alert">No questions found. Please go back and rank them first.</p>`;
+        continueBtn.disabled = true;
+        return;
+      }
 
-    function renderList() {
-      list.innerHTML = "";
-      currentOrder.forEach((i, rank) => {
-        const li = document.createElement("li");
-        li.className = "rank-item";
-        li.setAttribute("draggable", "true");
-        li.dataset.index = i;
+      orderedQuestions.forEach((q, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "question-block";
 
-        li.innerHTML = `
-          <span class="badge">${rank + 1}</span>
-          <span class="label">${questionBank[i]}</span>
-          <span class="handle">☰</span>
-        `;
+        const qText = document.createElement("div");
+        qText.className = "question-text";
+        qText.innerHTML = q.label;
 
-        list.appendChild(li);
-      });
-    }
+        const emojiRow = document.createElement("div");
+        emojiRow.className = "emoji-row";
 
-    function swap(fromIndex, toIndex) {
-      const item = currentOrder.splice(fromIndex, 1)[0];
-      currentOrder.splice(toIndex, 0, item);
-    }
+        emojis.forEach(e => {
+          const btn = document.createElement("button");
+          btn.className = "emoji-btn";
+          btn.textContent = e.icon;
+          btn.title = e.label;
+          btn.dataset.value = e.value;
 
-    function handleDragEvents() {
-      let draggingIndex = null;
+          btn.addEventListener("click", () => {
+            confidence[index] = e.value;
+            highlightSelection(emojiRow, e.value);
+            checkCompletion();
+          });
 
-      list.addEventListener("dragstart", (e) => {
-        draggingIndex = [...list.children].indexOf(e.target);
-        e.target.classList.add("dragging");
-      });
-
-      list.addEventListener("dragend", (e) => {
-        e.target.classList.remove("dragging");
-      });
-
-      list.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        const afterElement = [...list.children].find(child => {
-          const box = child.getBoundingClientRect();
-          return e.clientY < box.top + box.height / 2;
+          emojiRow.appendChild(btn);
         });
-        const newIndex = afterElement ? [...list.children].indexOf(afterElement) : list.children.length - 1;
 
-        if (newIndex !== draggingIndex) {
-          swap(draggingIndex, newIndex);
-          renderList();
-          handleDragEvents(); // Reattach
-        }
+        wrapper.appendChild(qText);
+        wrapper.appendChild(emojiRow);
+        container.appendChild(wrapper);
       });
     }
 
-    btn.addEventListener("click", () => {
-      // Save both the ranked indices and the full text order
-      const orderedQuestions = currentOrder.map(i => questionBank[i]);
+    function highlightSelection(row, selectedValue) {
+      [...row.children].forEach(btn => {
+        btn.style.opacity = btn.dataset.value == selectedValue ? "1" : "0.5";
+      });
+    }
 
-      localStorage.setItem("rankOrder", JSON.stringify(currentOrder));
-      localStorage.setItem("orderedQuestions", JSON.stringify(orderedQuestions));
+    function checkCompletion() {
+      const total = orderedQuestions.length;
+      const completed = Object.keys(confidence).length;
 
-      window.location.href = "confidence.html";
+      continueBtn.disabled = completed < total;
+      continueBtn.classList.toggle("active", completed === total);
+    }
+
+    continueBtn.addEventListener("click", () => {
+      localStorage.setItem("confidence", JSON.stringify(confidence));
+      window.location.href = "q1.html";
     });
 
-    renderList();
-    handleDragEvents();
+    renderQuestions();
   </script>
 </body>
 </html>
