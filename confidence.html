@@ -1,31 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Confidence Ranking</title>
+  <meta charset="utf-8" />
+  <title>Rank the 5 Questions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
       background: #f9f9f9;
       margin: 0;
-      padding: 1rem;
+      padding: 2rem;
     }
 
     .progress {
-      height: 6px;
       background: #eee;
-      margin-bottom: 1.5rem;
+      height: 6px;
+      margin: 0 0 1.5rem 0;
     }
 
     .progress i {
       display: block;
       background: #4f46e5;
       height: 100%;
-      width: 40%;
+      transition: width 0.3s;
     }
 
-    main.card {
+    main.container {
       background: white;
       max-width: 720px;
       margin: 0 auto;
@@ -34,67 +35,64 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
-    h1 {
+    h2 {
       font-size: 1.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
     }
 
-    .text-muted {
+    .sub, .hint {
       font-size: 1rem;
-      color: #555;
+      color: #444;
       margin-bottom: 1rem;
     }
 
-    .emoji-key {
-      background: #f4f4f4;
-      padding: 1rem;
-      border-radius: 10px;
-      margin: 1rem 0;
-      font-size: 0.95rem;
+    .rank-list {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0;
     }
 
-    .confidence-row {
-      margin-bottom: 1.5rem;
+    .rank-item {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      margin: .5rem 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,.04);
     }
 
-    .question-label {
-      font-weight: 600;
+    .badge {
+      min-width: 2ch;
+      text-align: right;
+      font-weight: 700;
+      opacity: .7;
+    }
+
+    .label {
       flex: 1;
-      min-width: 200px;
     }
 
-    .emoji-options {
-      display: flex;
-      gap: 1rem;
-    }
-
-    .emoji-btn {
+    .handle {
+      margin-left: auto;
+      cursor: grab;
       font-size: 1.5rem;
-      background: #eee;
-      border: none;
-      border-radius: 50%;
-      width: 44px;
-      height: 44px;
-      cursor: pointer;
-      transition: transform 0.2s;
+      opacity: 0.4;
     }
 
-    .emoji-btn:hover {
-      transform: scale(1.1);
+    .dragging {
+      opacity: .6;
     }
 
-    .emoji-btn.selected {
-      background: #4f46e5;
-      color: white;
+    .actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.5rem;
     }
 
-    button#continue {
-      margin-top: 1rem;
+    .btn {
       padding: 0.75rem 1.5rem;
       background: #4f46e5;
       color: white;
@@ -105,118 +103,139 @@
       transition: background 0.2s ease;
     }
 
-    button:disabled {
-      background: #ccc;
+    .btn:disabled {
+      background: #aaa;
       cursor: not-allowed;
     }
 
+    .alert {
+      background: #fff3cd;
+      border: 1px solid #ffe58f;
+      color: #8a6d3b;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0;
+    }
+
     @media (max-width: 480px) {
-      main.card {
+      body {
+        padding: 1rem;
+      }
+
+      main.container {
         padding: 1.5rem 1rem;
       }
 
-      .confidence-row {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .emoji-options {
-        gap: 0.75rem;
-      }
-
-      .emoji-btn {
-        width: 40px;
-        height: 40px;
+      .btn {
+        width: 100%;
       }
     }
   </style>
+
+  <!-- MathJax for LaTeX rendering -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], processEscapes: true },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i></i></div>
+  <div class="progress"><i id="progressBar" style="width:30%"></i></div>
 
-  <main class="card">
-    <h1>How confident do you feel about each problem?</h1>
-    <p id="module-title" class="text-muted"></p>
+  <main class="container" role="main">
+    <h2>Rank the Questions</h2>
+    <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
+    <p class="hint" id="hint">Your order helps pick the first practice question.</p>
 
-    <div class="emoji-key card">
-      <strong>Confidence key:</strong>
-      😟 Not confident &nbsp;&nbsp; 😐 Somewhat &nbsp;&nbsp; 😄 Very confident
+    <div id="notice" class="alert" style="display:none"></div>
+    <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
+
+    <div class="actions">
+      <button id="continueBtn" class="btn" type="button">Continue</button>
     </div>
-
-    <form id="confidence-form" class="vertical-gap"></form>
-
-    <button id="continue" disabled>Continue</button>
   </main>
 
-  <!-- Logic and question rendering -->
   <script type="module">
-    import { getKV, setKV, setProgress } from './js/app.js';
-    import { MODULE_TITLES, MODULE_QUESTIONS } from './js/modules.js';
+    // Sample questions (replace or import from your real source)
+    const questionBank = [
+      "What is the derivative of $x^2$?",
+      "Solve for $x$: $2x + 3 = 7$",
+      "What is the integral of $\\sin(x)$?",
+      "Explain the Pythagorean Theorem.",
+      "Factor the quadratic: $x^2 - 5x + 6$"
+    ];
 
-    const moduleId =
-      getKV('current_module') ||
-      getKV('selected_module') ||
-      sessionStorage.getItem('selected_module') ||
-      'M1';
+    const list = document.getElementById("rankList");
+    const btn = document.getElementById("continueBtn");
 
-    const title = MODULE_TITLES?.[moduleId] || moduleId;
-    const questions = MODULE_QUESTIONS?.[moduleId] || [];
-    const savedOrder = getKV(`${moduleId}_rank`) || [];
+    // Initial order = 0, 1, 2...
+    let currentOrder = [...Array(questionBank.length).keys()];
 
-    const ranked = savedOrder.map(id => questions.find(q => q.id === id)).filter(Boolean);
+    function renderList() {
+      list.innerHTML = "";
+      currentOrder.forEach((i, rank) => {
+        const li = document.createElement("li");
+        li.className = "rank-item";
+        li.setAttribute("draggable", "true");
+        li.dataset.index = i;
 
-    document.getElementById('module-title').textContent = `Module: ${title}`;
-    const form = document.getElementById('confidence-form');
-    const continueBtn = document.getElementById('continue');
-    const confidence = {};
+        li.innerHTML = `
+          <span class="badge">${rank + 1}</span>
+          <span class="label">${questionBank[i]}</span>
+          <span class="handle">☰</span>
+        `;
 
-    ranked.forEach((q, index) => {
-      const row = document.createElement('div');
-      row.className = 'confidence-row';
+        list.appendChild(li);
+      });
+    }
 
-      const label = document.createElement('div');
-      label.className = 'question-label';
-      label.textContent = q.label || `Question ${index + 1}`;
+    function swap(fromIndex, toIndex) {
+      const item = currentOrder.splice(fromIndex, 1)[0];
+      currentOrder.splice(toIndex, 0, item);
+    }
 
-      const emojiContainer = document.createElement('div');
-      emojiContainer.className = 'emoji-options';
+    function handleDragEvents() {
+      let draggingIndex = null;
 
-      ['😟', '😐', '😄'].forEach((emoji, level) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'emoji-btn';
-        btn.textContent = emoji;
-
-        btn.addEventListener('click', () => {
-          // Deselect others
-          emojiContainer.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-
-          // Record confidence
-          confidence[q.id] = level;
-
-          // Enable button only when all answered
-          const allAnswered = ranked.every(q => confidence[q.id] !== undefined);
-          continueBtn.disabled = !allAnswered;
-        });
-
-        emojiContainer.appendChild(btn);
+      list.addEventListener("dragstart", (e) => {
+        draggingIndex = [...list.children].indexOf(e.target);
+        e.target.classList.add("dragging");
       });
 
-      row.appendChild(label);
-      row.appendChild(emojiContainer);
-      form.appendChild(row);
+      list.addEventListener("dragend", (e) => {
+        e.target.classList.remove("dragging");
+      });
+
+      list.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const afterElement = [...list.children].find(child => {
+          const box = child.getBoundingClientRect();
+          return e.clientY < box.top + box.height / 2;
+        });
+        const newIndex = afterElement ? [...list.children].indexOf(afterElement) : list.children.length - 1;
+
+        if (newIndex !== draggingIndex) {
+          swap(draggingIndex, newIndex);
+          renderList();
+          handleDragEvents(); // Reattach
+        }
+      });
+    }
+
+    btn.addEventListener("click", () => {
+      // Save both the ranked indices and the full text order
+      const orderedQuestions = currentOrder.map(i => questionBank[i]);
+
+      localStorage.setItem("rankOrder", JSON.stringify(currentOrder));
+      localStorage.setItem("orderedQuestions", JSON.stringify(orderedQuestions));
+
+      window.location.href = "confidence.html";
     });
 
-    continueBtn.addEventListener('click', () => {
-      const allConfidence = getKV('confidence') || {};
-      allConfidence[moduleId] = confidence;
-      setKV('confidence', allConfidence);
-      setProgress(60);
-      window.location.href = 'q1.html';
-    });
-
-    setProgress(40);
+    renderList();
+    handleDragEvents();
   </script>
 </body>
 </html>
