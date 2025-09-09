@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Question 1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
@@ -36,31 +37,26 @@
 
     h2 {
       font-size: 1.75rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1rem;
     }
 
-    .question-text {
-      font-size: 1.2rem;
-      padding: 1rem;
+    .question {
+      font-size: 1.25rem;
+      line-height: 1.6;
+      padding: 1.25rem;
       background: #f3f4f6;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
+      border-left: 4px solid #4f46e5;
+      border-radius: 10px;
+      margin-bottom: 2rem;
     }
 
-    textarea {
-      width: 100%;
-      min-height: 120px;
-      font-size: 1rem;
-      padding: 1rem;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      resize: vertical;
-      margin-bottom: 1.5rem;
+    .loading {
+      color: #666;
+      font-style: italic;
     }
 
     .actions {
-      display: flex;
-      justify-content: center;
+      text-align: center;
     }
 
     .btn {
@@ -97,90 +93,72 @@
   <div class="progress"><i style="width: 60%"></i></div>
 
   <main class="container">
-    <h2>Question 1</h2>
-    <div id="question" class="question-text">Loading...</div>
-
-    <textarea id="answer" placeholder="Type your answer here..."></textarea>
+    <h2>Your First Practice Question</h2>
+    <div id="questionDisplay" class="question loading">Loading...</div>
 
     <div class="actions">
-      <button class="btn" id="continue">Submit</button>
+      <button class="btn" onclick="next()">Next</button>
     </div>
   </main>
 
-  <script type="module">
-    import MODULE_QUESTIONS from './modules.js';
+  <script>
+    const orderedQuestions = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
+    const confidence = JSON.parse(localStorage.getItem("confidence") || "{}");
+    const display = document.getElementById("questionDisplay");
 
-    const RANK = JSON.parse(localStorage.getItem("order") || "[]");
-    const CONF = JSON.parse(localStorage.getItem("confidence") || "{}");
+    function getPivotQuestion() {
+      const grouped = { high: [], medium: [], low: [] };
 
-    const H = [], M = [], L = [];
-    for (const [i, qId] of RANK.entries()) {
-      const level = CONF[i];
-      if (level === 4) H.push(i);
-      else if (level === 3 || level === 2) M.push(i);
-      else if (level === 1) L.push(i);
-    }
+      orderedQuestions.forEach((q, i) => {
+        const c = confidence[i];
+        if (c === 4) grouped.high.push({ q, i });
+        else if (c === 3 || c === 2) grouped.medium.push({ q, i });
+        else if (c === 1) grouped.low.push({ q, i });
+      });
 
-    function pickSecondHardest(list) {
-      return list[list.length - 2];
-    }
-
-    function pickHardest(list) {
-      return list[list.length - 1];
-    }
-
-    function pickEasiest(list) {
-      return list[0];
-    }
-
-    function pickSecondEasiest(list) {
-      return list[1];
-    }
-
-    let q1Index = null;
-    if (H.length >= 2) {
-      q1Index = pickSecondHardest(H);
-    } else if (H.length >= 1 && M.length >= 1) {
-      q1Index = pickHardest(H);
-    } else if (H.length === 0 && M.length >= 1 && L.length === 0) {
-      q1Index = pickEasiest(M);
-    } else if (H.length === 0 && M.length >= 1 && L.length >= 1) {
-      q1Index = pickEasiest(M);
-    } else if (H.length === 0 && M.length === 0 && L.length >= 2) {
-      q1Index = pickSecondEasiest(L);
-    }
-
-    if (q1Index === null) {
-      q1Index = Math.floor(RANK.length / 2);
-    }
-
-    const q1Id = RANK[q1Index];
-
-    function findQuestionLabelById(id) {
-      for (const questions of Object.values(MODULE_QUESTIONS)) {
-        const q = questions.find(q => q.id === id);
-        if (q) return q.label;
+      if (grouped.high.length >= 2) {
+        return grouped.high[grouped.high.length - 2]; // 2nd hardest high
+      } else if (grouped.high.length >= 1 && grouped.medium.length >= 1) {
+        return grouped.high[grouped.high.length - 1]; // hardest high
+      } else if (grouped.medium.length > 0) {
+        return grouped.medium[0]; // easiest medium
+      } else if (grouped.low.length >= 1 && grouped.medium.length >= 1) {
+        return grouped.medium[0]; // easiest medium again
+      } else if (grouped.low.length > 1) {
+        return grouped.low[1]; // 2nd easiest low
+      } else if (grouped.low.length === 1) {
+        return grouped.low[0];
       }
-      return "Error: Question not found";
+
+      return null;
     }
 
-    const questionText = findQuestionLabelById(q1Id);
-    document.getElementById("question").textContent = questionText;
-
-    document.getElementById("continue").addEventListener("click", () => {
-      const answer = document.getElementById("answer").value.trim();
-      if (!answer) {
-        alert("Please enter an answer before continuing.");
+    function render() {
+      if (!orderedQuestions.length || Object.keys(confidence).length === 0) {
+        display.textContent = "No data found. Please complete ranking and confidence rating first.";
+        display.classList.remove("loading");
         return;
       }
 
-      const allAnswers = JSON.parse(localStorage.getItem("answers") || "{}");
-      allAnswers[q1Id] = answer;
-      localStorage.setItem("answers", JSON.stringify(allAnswers));
-      localStorage.setItem("q1Id", q1Id);
+      const result = getPivotQuestion();
 
-      window.location.href = "q2.html";
-    });
+      if (!result) {
+        display.textContent = "Could not determine a suitable question.";
+        display.classList.remove("loading");
+        return;
+      }
+
+      display.textContent = result.q;
+      display.classList.remove("loading");
+
+      localStorage.setItem("q1_index", result.i); // Save index for later use
+    }
+
+    function next() {
+      window.location.href = "q2.html"; // Adjust as needed
+    }
+
+    render();
   </script>
 </body>
 </html>
