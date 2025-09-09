@@ -108,15 +108,6 @@
       cursor: not-allowed;
     }
 
-    .alert {
-      background: #fff3cd;
-      border: 1px solid #ffe58f;
-      color: #8a6d3b;
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin: 12px 0;
-    }
-
     @media (max-width: 480px) {
       body {
         padding: 1rem;
@@ -142,12 +133,12 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
-  <div class="progress"><i id="progressBar" style="width:40%"></i></div>
+  <div class="progress"><i style="width: 40%"></i></div>
 
   <main class="container" role="main">
     <h2>Rank the Questions</h2>
     <p class="sub">Drag so the <strong>easiest is on top</strong> and the <strong>hardest on the bottom</strong>.</p>
-    <p class="hint">Your order helps choose the best first practice question.</p>
+    <p class="hint">Your order helps pick the first practice question.</p>
 
     <ul id="rankList" class="rank-list" aria-label="Rank questions from easiest to hardest"></ul>
 
@@ -167,71 +158,81 @@
 
     // Shuffle the questions
     const shuffled = [...questions].sort(() => Math.random() - 0.5);
-
     const list = document.getElementById("rankList");
     const btn = document.getElementById("continueBtn");
 
-    let currentOrder = [...Array(shuffled.length).keys()];
-
+    // Render once
     function renderList() {
-      list.innerHTML = "";
-      currentOrder.forEach((i, rank) => {
+      shuffled.forEach((q, i) => {
         const li = document.createElement("li");
         li.className = "rank-item";
         li.setAttribute("draggable", "true");
         li.dataset.index = i;
 
         li.innerHTML = `
-          <span class="badge">${rank + 1}</span>
-          <span class="label">${shuffled[i].label}</span>
+          <span class="badge"></span>
+          <span class="label">${q.label}</span>
           <span class="handle">☰</span>
         `;
 
         list.appendChild(li);
       });
+
+      updateBadges();
+      makeListDraggable();
+      MathJax.typesetPromise(); // Render math once
     }
 
-    function swap(fromIndex, toIndex) {
-      const item = currentOrder.splice(fromIndex, 1)[0];
-      currentOrder.splice(toIndex, 0, item);
+    function updateBadges() {
+      [...list.children].forEach((li, i) => {
+        li.querySelector('.badge').textContent = i + 1;
+      });
     }
 
-    function handleDragEvents() {
-      let draggingIndex = null;
+    function makeListDraggable() {
+      let draggedItem = null;
 
       list.addEventListener("dragstart", (e) => {
-        draggingIndex = [...list.children].indexOf(e.target);
-        e.target.classList.add("dragging");
+        const li = e.target.closest(".rank-item");
+        if (!li) return;
+        draggedItem = li;
+        li.classList.add("dragging");
       });
 
       list.addEventListener("dragend", (e) => {
-        e.target.classList.remove("dragging");
+        if (draggedItem) draggedItem.classList.remove("dragging");
+        draggedItem = null;
+        updateBadges();
       });
 
       list.addEventListener("dragover", (e) => {
         e.preventDefault();
-        const afterElement = [...list.children].find(child => {
-          const box = child.getBoundingClientRect();
-          return e.clientY < box.top + box.height / 2;
-        });
-        const newIndex = afterElement ? [...list.children].indexOf(afterElement) : list.children.length - 1;
+        const target = e.target.closest(".rank-item");
+        if (!target || target === draggedItem) return;
 
-        if (newIndex !== draggingIndex) {
-          swap(draggingIndex, newIndex);
-          renderList();
-          handleDragEvents(); // Rebind
+        const bounding = target.getBoundingClientRect();
+        const offset = e.clientY - bounding.top;
+        const shouldInsertBefore = offset < bounding.height / 2;
+        const referenceNode = shouldInsertBefore ? target : target.nextSibling;
+
+        if (referenceNode !== draggedItem) {
+          list.insertBefore(draggedItem, referenceNode);
         }
       });
     }
 
+    function getCurrentOrder() {
+      return [...list.children].map(li => parseInt(li.dataset.index));
+    }
+
     btn.addEventListener("click", () => {
-      const ordered = currentOrder.map(i => shuffled[i]);
+      const finalOrder = getCurrentOrder();
+      const ordered = finalOrder.map(i => shuffled[i]);
       localStorage.setItem("orderedQuestions", JSON.stringify(ordered));
       window.location.href = "confidence.html";
     });
 
     renderList();
-    handleDragEvents();
   </script>
 </body>
 </html>
