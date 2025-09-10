@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Practice Question 1</title>
+  <title>Question 1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
   <style>
@@ -16,29 +16,27 @@
     .progress {
       background: #eee;
       height: 6px;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     .progress i {
       display: block;
       background: #4f46e5;
       height: 100%;
-      width: 60%;
     }
 
     main.container {
       background: white;
-      max-width: 640px;
+      max-width: 720px;
       margin: 0 auto;
-      padding: 2.5rem;
+      padding: 2rem 2.5rem;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-      text-align: center;
     }
 
     h2 {
-      font-size: 1.6rem;
-      margin-bottom: 1.2rem;
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
     }
 
     .question {
@@ -46,105 +44,79 @@
       margin-bottom: 1.5rem;
     }
 
-    .answer-section {
-      text-align: left;
-      margin-top: 2rem;
-    }
-
-    label {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    textarea {
+    input[type="text"] {
       width: 100%;
-      min-height: 100px;
+      padding: 0.75rem 1rem;
       font-size: 1rem;
-      padding: 0.75rem;
       border: 1px solid #ccc;
       border-radius: 8px;
+      margin-bottom: 1.5rem;
     }
 
     button {
-      margin-top: 1.5rem;
       padding: 0.75rem 1.5rem;
-      background: #ccc;
+      background: #4f46e5;
       color: white;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
-      cursor: not-allowed;
-      width: 100%;
-    }
-
-    button.enabled {
-      background: #4f46e5;
       cursor: pointer;
     }
   </style>
 </head>
+
 <body>
-  <div class="progress"><i></i></div>
+  <div class="progress"><i style="width: 50%"></i></div>
 
   <main class="container">
-    <h2>Try this question first</h2>
-    <div class="question" id="questionText">Loading...</div>
+    <h2>Question 1</h2>
+    <div id="question" class="question">Loading question...</div>
 
-    <div class="answer-section">
-      <label for="answer">Your Answer</label>
-      <textarea id="answer" placeholder="Type your answer here..."></textarea>
-    </div>
+    <input type="text" id="answerInput" placeholder="Type your answer here..." />
 
-    <button id="continueBtn" disabled>Continue</button>
+    <button id="submitBtn">Submit Answer</button>
   </main>
 
   <script type="module">
-  const getKV = (k, fallback = null) => {
-    try {
-      return JSON.parse(localStorage.getItem(k)) ?? fallback;
-    } catch {
-      return fallback;
+    const orderedQuestions = JSON.parse(localStorage.getItem("orderedQuestions") || "[]");
+    const q1Index = 0;
+    const q1 = orderedQuestions[q1Index];
+
+    // 🐞 Debug info:
+    console.log("Available questions:", orderedQuestions);
+    console.log("Chosen Q1 Index:", q1Index);
+    console.log("Chosen Question:", q1);
+
+    const questionDiv = document.getElementById("question");
+
+    if (!q1 || !q1.label) {
+      questionDiv.textContent = "⚠️ Could not determine question.";
+    } else {
+      questionDiv.innerHTML = q1.label;
+      MathJax.typesetPromise?.();
     }
-  };
 
-  const setKV = (k, v) => {
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-    } catch {}
-  };
+    // Store q1 index for later reference
+    localStorage.setItem("q1_index", q1Index.toString());
 
-  const moduleId = getKV('current_module') ?? 'M1';
-  const rank = getKV(`${moduleId}_rank`, []);
-  const questions = getKV(`${moduleId}_questions`, []);
-  const q1Index = getKV('q1_index', null);
+    document.getElementById("submitBtn").addEventListener("click", () => {
+      const answer = document.getElementById("answerInput").value.trim();
 
-  const questionText = document.getElementById('questionText');
-  const answerInput = document.getElementById('answer');
-  const continueBtn = document.getElementById('continueBtn');
+      if (!answer) {
+        alert("Please enter an answer before continuing.");
+        return;
+      }
 
-  // Get question ID from rank list
-  const questionId = rank?.[q1Index];
-  const selected = questions.find(q => q.id === questionId);
-  const label = selected?.label ?? "Could not determine question.";
+      // Store answer
+      localStorage.setItem("q1_answer", answer);
 
-  questionText.innerHTML = label;
-  if (window.MathJax?.typesetPromise) {
-    MathJax.typesetPromise([questionText]).catch(() => {});
-  }
+      // For now, we'll mock correctness
+      const correct = window.confirm("Did the student get it correct? Click OK for yes, Cancel for no.");
+      localStorage.setItem("q1_correct", correct ? "true" : "false");
 
-  // Enable continue when text is entered
-  answerInput.addEventListener('input', () => {
-    const filled = answerInput.value.trim().length > 0;
-    continueBtn.disabled = !filled;
-    continueBtn.classList.toggle('enabled', filled);
-  });
-
-  continueBtn.addEventListener('click', () => {
-    const answer = answerInput.value.trim();
-    setKV('q1_answer', answer);
-    window.location.href = 'q2.html';
-  });
-</script>
+      // Proceed to Q2
+      window.location.href = "q2.html";
+    });
+  </script>
 </body>
 </html>
